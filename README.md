@@ -1,6 +1,6 @@
-# 🤖 Agente IPO - Sistema Inteligente de Codificação
+# 🤖 Qualicode_IA - Sistema Inteligente de Codificação
 
-> Sistema automatizado para codificação de pesquisas do Instituto Pesquisas de Opinião (IPO) com correção ortográfica, agrupamento inteligente e relatórios detalhados.
+> Plataforma automatizada para codificação de pesquisas com IA, correção ortográfica, agrupamento semântico e relatórios detalhados. Reduz tempo de codificação manual em 80% com custo 50% menor que plataformas proprietárias.
 
 ## 📋 Índice
 
@@ -17,7 +17,7 @@
 
 ## 🎯 Sobre o Projeto
 
-O **Agente IPO** é um sistema web desenvolvido especificamente para automatizar o processo de codificação de pesquisas de opinião. Ele resolve os principais desafios enfrentados pelos institutos de pesquisa:
+O **Qualicode_IA** é uma plataforma moderna para automatizar codificação de pesquisas qualitativas. Combina IA (OpenAI gpt-3.5-turbo), processamento de linguagem natural e interface interativa para oferecer precisão próxima a BTInsights com custo significativamente menor.
 
 ### 🔍 Problemas Resolvidos
 
@@ -77,23 +77,27 @@ O **Agente IPO** é um sistema web desenvolvido especificamente para automatizar
 3. **Relatório de Agrupamentos** (.txt) - Detalhamento completo
 4. **Resumo Estatístico** (.txt) - Análise quantitativa
 
-## 🛠️ Tecnologias
+### 🛠️ Tecnologias
 
-### Backend
-- **Python 3.8+** - Linguagem principal
-- **Flask 2.3+** - Framework web
-- **Pandas** - Manipulação de dados
-- **OpenPyXL** - Processamento Excel
+#### Backend
+- **Python 3.10+** - Linguagem principal
+- **FastAPI** - Framework assíncrono (em desenvolvimento)
+- **OpenAI API** - gpt-3.5-turbo com function-calling
+- **Pandas + openpyxl** - Processamento de dados e Excel
+- **SQLAlchemy + PostgreSQL** - Persistência com auditoria
+- **Pydantic** - Validação de esquemas
 
-### Frontend
-- **Bootstrap 5** - Framework CSS responsivo
-- **Font Awesome** - Ícones profissionais
-- **JavaScript ES6** - Interatividade
-- **HTML5/CSS3** - Estrutura e estilo
+#### Frontend
+- **React 18 + TypeScript** - UI moderna e type-safe
+- **Vite** - Build rápido e dev server otimizado
+- **React Router** - Navegação SPA
+- **Axios** - HTTP client
+- **CSS Modules** - Estilização escalável
 
-### Deploy
-- **Render** - Hospedagem gratuita
-- **Gunicorn** - Servidor WSGI
+#### Deploy & DevOps
+- **Render** - Hospedagem (backend + frontend)
+- **Uvicorn** - Servidor ASGI
+- **Docker** - Containerização (planejado)
 - **Git** - Controle de versão
 
 ## 🚀 Instalação
@@ -108,8 +112,8 @@ O **Agente IPO** é um sistema web desenvolvido especificamente para automatizar
 
 ```bash
 # 1. Clonar repositório
-git clone https://github.com/seu-usuario/agente-ipo.git
-cd agente-ipo
+git clone https://github.com/Xande025/Qualicode_IA.git
+cd Qualicode_IA
 
 # 2. Criar ambiente virtual (recomendado)
 python -m venv venv
@@ -117,25 +121,39 @@ source venv/bin/activate  # Linux/Mac
 # ou
 venv\Scripts\activate  # Windows
 
-# 3. Instalar dependências
+# 3. Configurar variáveis de ambiente
+cp .env.example .env
+# Edite .env e adicione sua OPENAI_API_KEY
+
+# 4. Instalar dependências
 pip install -r requirements.txt
 
-# 4. Executar aplicação
+# 5. Executar aplicação (MVP - Flask)
 python web_interface_ipo.py
+# ou (futuro - FastAPI)
+# uvicorn app.main:app --reload
 
-# 5. Acessar no navegador
-# http://localhost:5000
+# 6. Acessar no navegador
+# http://localhost:5000 (Flask MVP)
+# http://localhost:8000 (FastAPI futuro)
 ```
 
 ### Variáveis de Ambiente
 
-Crie um arquivo `.env` (opcional):
+Crie um arquivo `.env` a partir do template:
 
 ```env
+# Backend
+OPENAI_API_KEY=sk-...seu-api-key-aqui
 FLASK_ENV=development
-SECRET_KEY=sua_chave_secreta_aqui
-MAX_CONTENT_LENGTH=52428800  # 50MB
 PORT=5000
+RESULTS_FOLDER=./results
+
+# Database (futuro)
+DATABASE_URL=postgresql://user:password@localhost:5432/qualicode_ia
+
+# Frontend (se separado)
+REACT_APP_API_URL=http://localhost:5000
 ```
 
 ## 📖 Como Usar
@@ -229,22 +247,47 @@ Download de arquivos gerados.
 
 ## 📁 Estrutura do Projeto
 
+### MVP Atual (Flask Monolítico)
 ```
-agente-ipo/
-├── web_interface_ipo.py          # Aplicação Flask principal
-├── final_ipo_agent_improved.py   # Agente de codificação
-├── improved_coding_system.py     # Sistema de correção e agrupamento
-├── templates/                    # Templates HTML
-│   ├── base.html                # Template base
-│   ├── index.html               # Página inicial
-│   ├── questao_especifica.html  # Formulário principal
-│   ├── upload.html              # Upload de arquivos
-│   └── exemplo.html             # Página de exemplo
-├── requirements.txt             # Dependências Python
-├── render.yaml                  # Configuração Render
-├── Procfile                     # Configuração Heroku
-├── .gitignore                   # Arquivos ignorados
-└── README.md                    # Este arquivo
+Qualicode_IA/
+├── improved_coding_system.py         # Core: canonicalize, fuzzy merge, ChatGPT
+├── final_ipo_agent_improved.py       # Orchestrator: processa questões
+├── openai_compat.py                  # Compatibility wrapper OpenAI
+├── web_interface_ipo.py              # Flask app (rotas: upload, questao_especifica, export)
+├── templates/                        # Templates HTML
+│   ├── base.html
+│   ├── index.html
+│   ├── upload.html
+│   ├── questao_especifica.html
+│   └── exemplo.html
+├── results/                          # Outputs gerados (XLSX, TXT, logs)
+├── docs/                             # Documentação
+│   ├── contexto.md
+│   ├── fluxogramas.md
+│   ├── logica_negocio.md
+│   ├── componentes_principais.md
+│   └── estrutura_de_pastas_sugerida.md
+├── .venv/                            # Virtual environment
+├── requirements.txt
+├── render.yaml
+├── Procfile
+└── README.md
+```
+
+### Arquitetura Futura (FastAPI + React)
+```
+Qualicode_IA/
+├── backend/                          # FastAPI + modular
+│   ├── app/api/routes/
+│   ├── app/core/
+│   ├── app/models/
+│   └── requirements.txt
+├── frontend/                         # React 18 + TypeScript
+│   ├── src/components/
+│   ├── src/pages/
+│   ├── src/api/
+│   └── package.json
+└── docs/
 ```
 
 ### Arquivos Principais
@@ -332,21 +375,44 @@ Código 1 – Melhoria na área da saúde:
 Este projeto está licenciado sob a Licença MIT - veja o arquivo [LICENSE](LICENSE) para detalhes.
 ## 🎯 Status do Projeto
 
-- ✅ **Interface Web** - Completa e funcional
-- ✅ **Sistema de Codificação** - Testado e validado
-- ✅ **Deploy Automático** - Configurado para Render
-- ✅ **Documentação** - Completa e atualizada
-- ✅ **Testes** - Validado com dados reais
+### MVP (v0.1 - Atual)
+- ✅ Interface web funcional (Flask)
+- ✅ Sistema de codificação com ChatGPT + fallback local
+- ✅ Agrupamento inteligente (canonicalize + fuzzy merge)
+- ✅ Exportação XLSX/TXT
+- ✅ Deploy automatizado (Render)
+- ✅ Documentação técnica completa
+- ✅ Compatibilidade com OpenAI nova API
 
-### Próximas Funcionalidades
+### Sprint 1 (v0.2 - Esta semana)
+- [ ] Detecção automática de tipo de questão
+- [ ] Pré-visualização com confirmação obrigatória
+- [ ] Logs/auditoria raw do ChatGPT
+- [ ] Testes unitários básicos
+- [ ] Tratamento de erro 429 (quota)
 
-- [ ] **API REST** completa
-- [ ] **Autenticação** de usuários
-- [ ] **Histórico** de processamentos
-- [ ] **Exportação** em múltiplos formatos
-- [ ] **Integração** com outros sistemas
+### Sprint 2 (v0.3 - Próxima semana)
+- [ ] Expandir dicionário de sinônimos
+- [ ] Ajustar thresholds (fuzzy 85%+)
+- [ ] Marcar MANUAL_REVIEW para anomalias
+- [ ] Validação E2E com ChatGPT
+
+### v1.0 (Produção)
+- [ ] Migração para FastAPI (async)
+- [ ] Frontend React 18 + TypeScript
+- [ ] PostgreSQL com auditoria completa
+- [ ] Multi-usuário com autenticação
+- [ ] Suporte SPSS/CSV/RDS
 
 ---
 
-**🤖 Agente IPO - Automatizando a codificação de pesquisas com inteligência artificial!**
+## 📞 Contato & Contribuição
+
+**Desenvolvedor**: Xande025  
+**Repository**: [Xande025/Qualicode_IA](https://github.com/Xande025/Qualicode_IA)  
+**Issues & Sugestões**: [GitHub Issues](https://github.com/Xande025/Qualicode_IA/issues)
+
+---
+
+**🤖 Qualicode_IA - Inteligência artificial para pesquisas qualitativas!**
 
