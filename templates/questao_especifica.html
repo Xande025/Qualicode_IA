@@ -1,0 +1,306 @@
+{% extends "base.html" %}
+
+{% block title %}Questão Específica - Agente IPO{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="fas fa-edit text-primary"></i>
+            Questão Específica
+        </h1>
+        <p class="lead">Cole os dados de uma questão e os códigos F17 para processamento rápido</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <form id="questionForm">
+            <!-- Nome da Questão -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-tag"></i> Nome da Questão
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <input type="text" class="form-control" id="question_name" name="question_name" 
+                           placeholder="Ex: QUESTÃO 15 - PRINCIPAL REALIZAÇÃO DO GOVERNO" required>
+                    <div class="form-text">Dê um nome descritivo para identificar a questão</div>
+                </div>
+            </div>
+
+            <!-- Dados da Questão -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-list"></i> Dados da Questão
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <textarea class="form-control" id="question_data" name="question_data" rows="10" 
+                              placeholder="Cole aqui os dados da questão (uma resposta por linha):
+Melhorou a saude
+Asfalto novo
+Nao fez nada
+Construiu escola
+..." required></textarea>
+                    <div class="form-text">
+                        <strong>Como colar:</strong> Copie a coluna do Excel e cole aqui. Uma resposta por linha.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Códigos F17 -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-code"></i> Códigos F17 Existentes
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <textarea class="form-control" id="f17_codes" name="f17_codes" rows="8" 
+                              placeholder="Cole aqui os códigos F17 no formato: código | descrição
+1 | Melhoria na área da saúde
+2 | Pavimentação/asfalto
+3 | Educação
+9 | Não fez nada
+..." required></textarea>
+                    <div class="form-text">
+                        <strong>Formato:</strong> código | descrição (um por linha). Use o pipe (|) para separar.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Botão de Processar -->
+            <div class="d-grid">
+                <button type="submit" class="btn btn-primary btn-lg" id="processBtn">
+                    <i class="fas fa-cogs"></i> Processar Questão
+                </button>
+            </div>
+        </form>
+
+        <!-- Loading -->
+        <div class="loading text-center mt-4" id="loading">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Processando...</span>
+            </div>
+            <p class="mt-2">Processando questão... Isso pode levar alguns segundos.</p>
+        </div>
+
+        <!-- Resultados -->
+        <div class="result-section" id="results">
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-bar"></i> Resultados do Processamento
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row" id="statistics">
+                        <!-- Estatísticas serão inseridas aqui -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Relatório de Agrupamentos -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-file-alt"></i> Relatório de Agrupamentos
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="code-block" id="reportContent">
+                        <!-- Relatório será inserido aqui -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Downloads -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-download"></i> Downloads
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row" id="downloadLinks">
+                        <!-- Links de download serão inseridos aqui -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar com Ajuda -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-question-circle"></i> Como Usar
+                </h5>
+            </div>
+            <div class="card-body">
+                <h6>1. Nome da Questão</h6>
+                <p class="small">Dê um nome descritivo para identificar a questão nos relatórios.</p>
+
+                <h6>2. Dados da Questão</h6>
+                <p class="small">Cole a coluna do Excel com as respostas. Uma resposta por linha.</p>
+
+                <h6>3. Códigos F17</h6>
+                <p class="small">Cole os códigos existentes no formato: <code>código | descrição</code></p>
+
+                <h6>Exemplo de Códigos F17:</h6>
+                <div class="code-block small">1 | Melhoria na área da saúde
+2 | Pavimentação/asfalto
+3 | Educação
+9 | Não fez nada</div>
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-magic"></i> O que o Agente Faz
+                </h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    <li><i class="fas fa-check text-success"></i> Corrige erros ortográficos</li>
+                    <li><i class="fas fa-check text-success"></i> Agrupa respostas similares</li>
+                    <li><i class="fas fa-check text-success"></i> Usa códigos F17 existentes</li>
+                    <li><i class="fas fa-check text-success"></i> Cria novos códigos quando necessário</li>
+                    <li><i class="fas fa-check text-success"></i> Gera relatório detalhado</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-file-download"></i> Arquivos Gerados
+                </h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    <li><i class="fas fa-file-excel text-success"></i> Banco codificado (.xlsx)</li>
+                    <li><i class="fas fa-file-excel text-primary"></i> F17 atualizado (.xlsx)</li>
+                    <li><i class="fas fa-file-alt text-info"></i> Relatório de agrupamentos (.txt)</li>
+                    <li><i class="fas fa-file-alt text-warning"></i> Resumo estatístico (.txt)</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('questionForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    // Mostra loading
+    document.getElementById('loading').style.display = 'block';
+    document.getElementById('results').style.display = 'none';
+    document.getElementById('processBtn').disabled = true;
+    
+    // Coleta dados do formulário
+    const formData = new FormData();
+    formData.append('question_name', document.getElementById('question_name').value);
+    formData.append('question_data', document.getElementById('question_data').value);
+    formData.append('f17_codes', document.getElementById('f17_codes').value);
+    
+    // Envia requisição
+    fetch('/questao_especifica', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        // Esconde loading
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('processBtn').disabled = false;
+        
+        if (data.success) {
+            // Mostra resultados
+            showResults(data);
+        } else {
+            // Mostra erro
+            alert('Erro: ' + data.error);
+        }
+    })
+    .catch(error => {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('processBtn').disabled = false;
+        alert('Erro ao processar: ' + error);
+    });
+});
+
+function showResults(data) {
+    // Estatísticas
+    const statsHtml = `
+        <div class="col-md-3">
+            <div class="text-center">
+                <h4 class="text-primary">${data.total_responses}</h4>
+                <small>Total de Respostas</small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="text-center">
+                <h4 class="text-success">${data.valid_responses}</h4>
+                <small>Respostas Válidas</small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="text-center">
+                <h4 class="text-info">${data.statistics.total_codes}</h4>
+                <small>Códigos Finais</small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="text-center">
+                <h4 class="text-warning">${data.statistics.new_codes_count}</h4>
+                <small>Novos Códigos</small>
+            </div>
+        </div>
+    `;
+    document.getElementById('statistics').innerHTML = statsHtml;
+    
+    // Relatório
+    document.getElementById('reportContent').textContent = data.detailed_report;
+    
+    // Downloads
+    const downloadsHtml = `
+        <div class="col-md-6 mb-2">
+            <a href="${data.download_links.banco}" class="btn btn-success w-100">
+                <i class="fas fa-file-excel"></i> Banco Codificado
+            </a>
+        </div>
+        <div class="col-md-6 mb-2">
+            <a href="${data.download_links.f17}" class="btn btn-primary w-100">
+                <i class="fas fa-file-excel"></i> F17 Atualizado
+            </a>
+        </div>
+        <div class="col-md-6 mb-2">
+            <a href="${data.download_links.relatorio}" class="btn btn-info w-100">
+                <i class="fas fa-file-alt"></i> Relatório Agrupamentos
+            </a>
+        </div>
+        <div class="col-md-6 mb-2">
+            <a href="${data.download_links.resumo}" class="btn btn-warning w-100">
+                <i class="fas fa-file-alt"></i> Resumo Estatístico
+            </a>
+        </div>
+    `;
+    document.getElementById('downloadLinks').innerHTML = downloadsHtml;
+    
+    // Mostra seção de resultados
+    document.getElementById('results').style.display = 'block';
+    
+    // Scroll para resultados
+    document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
+}
+</script>
+{% endblock %}
+

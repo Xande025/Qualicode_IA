@@ -1,0 +1,241 @@
+{% extends "base.html" %}
+
+{% block title %}Upload de Arquivos - Agente IPO{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="fas fa-upload text-primary"></i>
+            Upload de Arquivos
+        </h1>
+        <p class="lead">Envie o Banco de Codificação e F17 para processamento completo da pesquisa</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <form method="POST" enctype="multipart/form-data">
+            <!-- Banco de Codificação -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-database"></i> Banco de Codificação
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <input type="file" class="form-control" id="banco_file" name="banco_file" 
+                               accept=".xlsx,.xls" required>
+                        <div class="form-text">
+                            Arquivo Excel (.xlsx ou .xls) com as respostas da pesquisa
+                        </div>
+                    </div>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Formato esperado:</strong> Arquivo Excel com uma coluna para cada questão, 
+                        onde cada linha representa uma entrevista.
+                    </div>
+                </div>
+            </div>
+
+            <!-- F17 -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-list-ol"></i> Formulário F17
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <input type="file" class="form-control" id="f17_file" name="f17_file" 
+                               accept=".xlsx,.xls" required>
+                        <div class="form-text">
+                            Arquivo Excel (.xlsx ou .xls) com os códigos existentes
+                        </div>
+                    </div>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Formato esperado:</strong> Arquivo Excel com colunas "Código" e "Descrição" 
+                        ou similar, contendo os códigos já definidos para as questões.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Opções de Processamento -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-cogs"></i> Opções de Processamento
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="process_f17" checked>
+                                <label class="form-check-label" for="process_f17">
+                                    Codificar questões F17
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="correct_location" checked>
+                                <label class="form-check-label" for="correct_location">
+                                    Corrigir questões de localização
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="standardize_income" checked>
+                                <label class="form-check-label" for="standardize_income">
+                                    Padronizar questões de renda
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="correct_text" checked>
+                                <label class="form-check-label" for="correct_text">
+                                    Corrigir outras questões
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Botão de Upload -->
+            <div class="d-grid">
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <i class="fas fa-upload"></i> Enviar e Processar Arquivos
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Sidebar com Informações -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle"></i> Processo Completo
+                </h5>
+            </div>
+            <div class="card-body">
+                <p>O processamento completo irá:</p>
+                <ul class="list-unstyled">
+                    <li><i class="fas fa-check text-success"></i> Identificar questões F17 automaticamente</li>
+                    <li><i class="fas fa-check text-success"></i> Codificar apenas questões que precisam</li>
+                    <li><i class="fas fa-check text-success"></i> Corrigir questões de localização</li>
+                    <li><i class="fas fa-check text-success"></i> Padronizar questões de renda</li>
+                    <li><i class="fas fa-check text-success"></i> Corrigir ortografia em outras questões</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-file-alt"></i> Formatos Suportados
+                </h5>
+            </div>
+            <div class="card-body">
+                <h6>Banco de Codificação:</h6>
+                <ul class="small">
+                    <li>Excel (.xlsx, .xls)</li>
+                    <li>Uma coluna por questão</li>
+                    <li>Uma linha por entrevista</li>
+                </ul>
+
+                <h6>Formulário F17:</h6>
+                <ul class="small">
+                    <li>Excel (.xlsx, .xls)</li>
+                    <li>Colunas: Código, Descrição</li>
+                    <li>Pode ter múltiplas abas</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-clock"></i> Tempo de Processamento
+                </h5>
+            </div>
+            <div class="card-body">
+                <p class="small">O tempo varia conforme o tamanho da pesquisa:</p>
+                <ul class="small">
+                    <li><strong>Pequena</strong> (até 100 entrevistas): ~1 minuto</li>
+                    <li><strong>Média</strong> (100-500 entrevistas): ~3-5 minutos</li>
+                    <li><strong>Grande</strong> (500+ entrevistas): ~10+ minutos</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="alert alert-warning mt-4">
+            <i class="fas fa-exclamation-triangle"></i>
+            <strong>Atenção:</strong> Arquivos grandes podem demorar para processar. 
+            Não feche a página durante o processamento.
+        </div>
+    </div>
+</div>
+
+<!-- Status de Upload (será mostrado via JavaScript) -->
+<div class="modal fade" id="uploadModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Processando Arquivos</h5>
+            </div>
+            <div class="modal-body text-center">
+                <div class="spinner-border text-primary mb-3" role="status">
+                    <span class="visually-hidden">Processando...</span>
+                </div>
+                <p>Enviando e processando arquivos...</p>
+                <p class="small text-muted">Isso pode levar alguns minutos dependendo do tamanho dos arquivos.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Mostra modal de loading ao enviar formulário
+document.querySelector('form').addEventListener('submit', function() {
+    const modal = new bootstrap.Modal(document.getElementById('uploadModal'));
+    modal.show();
+});
+
+// Validação de arquivos
+document.getElementById('banco_file').addEventListener('change', function() {
+    validateFile(this, 'Banco de Codificação');
+});
+
+document.getElementById('f17_file').addEventListener('change', function() {
+    validateFile(this, 'F17');
+});
+
+function validateFile(input, type) {
+    const file = input.files[0];
+    if (file) {
+        const validTypes = ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 
+                           'application/vnd.ms-excel'];
+        
+        if (!validTypes.includes(file.type)) {
+            alert(`${type}: Por favor, selecione um arquivo Excel (.xlsx ou .xls)`);
+            input.value = '';
+            return false;
+        }
+        
+        // Verifica tamanho (máximo 16MB)
+        if (file.size > 16 * 1024 * 1024) {
+            alert(`${type}: Arquivo muito grande. Máximo 16MB.`);
+            input.value = '';
+            return false;
+        }
+    }
+    return true;
+}
+</script>
+{% endblock %}
+

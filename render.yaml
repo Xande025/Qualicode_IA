@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: agente-ipo
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python web_interface_ipo.py
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: PYTHONPATH
+        value: /opt/render/project/src

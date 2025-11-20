@@ -1,0 +1,319 @@
+{% extends "base.html" %}
+
+{% block title %}Exemplo de Uso - Agente IPO{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="fas fa-question-circle text-primary"></i>
+            Exemplo de Uso
+        </h1>
+        <p class="lead">Veja como usar o Agente IPO com dados de exemplo</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <!-- Exemplo de Dados -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-database"></i> Exemplo: Questão sobre Principal Realização do Governo
+                </h5>
+            </div>
+            <div class="card-body">
+                <h6>Nome da Questão:</h6>
+                <div class="code-block mb-3">QUESTÃO 15 - PRINCIPAL REALIZAÇÃO DO GOVERNO</div>
+
+                <h6>Dados da Questão (respostas com erros ortográficos):</h6>
+                <div class="code-block mb-3">Melhorou a saude
+Melhorou a saúde do bairro
+Saude melhorou muito
+Arrumou as estradas
+Consertou as ruas
+Asfalto novo
+Pavimentacao das ruas
+Nao fez nada
+Nada foi feito
+Construiu escola nova
+Escola reformada
+Atuacao nas enchentes
+Ajudou na enchente
+Durante as enchentez foi prestativo
+Cemai
+Obra do cemai</div>
+
+                <h6>Códigos F17 Existentes:</h6>
+                <div class="code-block mb-3">1 | Melhoria na área da saúde
+2 | Pavimentação/asfalto
+3 | Educação
+4 | Revitalização do calçadão
+5 | Iluminação de led
+6 | Atrair novas empresas/desenvolvimento
+7 | Revitalização da Avenida Ruperti Filho
+8 | Cursos de qualificação
+9 | Não fez nada</div>
+
+                <div class="d-grid">
+                    <button class="btn btn-primary" onclick="preencherExemplo()">
+                        <i class="fas fa-copy"></i> Usar Este Exemplo
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Resultado Esperado -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-chart-bar"></i> Resultado Esperado
+                </h5>
+            </div>
+            <div class="card-body">
+                <h6>Estatísticas:</h6>
+                <div class="row mb-3">
+                    <div class="col-md-3 text-center">
+                        <h4 class="text-primary">16</h4>
+                        <small>Total de Respostas</small>
+                    </div>
+                    <div class="col-md-3 text-center">
+                        <h4 class="text-success">16</h4>
+                        <small>Respostas Válidas</small>
+                    </div>
+                    <div class="col-md-3 text-center">
+                        <h4 class="text-info">12</h4>
+                        <small>Códigos Finais</small>
+                    </div>
+                    <div class="col-md-3 text-center">
+                        <h4 class="text-warning">3</h4>
+                        <small>Novos Códigos</small>
+                    </div>
+                </div>
+
+                <h6>Agrupamentos Realizados:</h6>
+                <div class="code-block">Código 1 – Melhoria na área da saúde:
+ - Melhorou a saude
+ - Melhorou a saúde do bairro
+ - Saude melhorou muito
+
+Código 2 – Pavimentação/asfalto:
+ - Arrumou as estradas
+ - Consertou as ruas
+ - Asfalto novo
+ - Pavimentacao das ruas
+
+Código 3 – Educação:
+ - Construiu escola nova
+ - Escola reformada
+
+Código 9 – Não fez nada:
+ - Nao fez nada
+ - Nada foi feito
+
+Código 10 – Atuacao nas enchentes:
+ - Atuacao nas enchentes
+ - Ajudou na enchente
+ - Durante as enchentez foi prestativo
+
+Código 11 – Cemai:
+ - Cemai
+
+Código 12 – Obra do Cemai:
+ - Obra do cemai</div>
+            </div>
+        </div>
+
+        <!-- Correções Realizadas -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-spell-check"></i> Correções Ortográficas Realizadas
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Antes (com erros):</h6>
+                        <ul class="list-unstyled small">
+                            <li><code>saude</code></li>
+                            <li><code>pavimentacao</code></li>
+                            <li><code>nao</code></li>
+                            <li><code>atuacao</code></li>
+                            <li><code>enchentez</code></li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Depois (corrigido):</h6>
+                        <ul class="list-unstyled small">
+                            <li><code>saúde</code></li>
+                            <li><code>pavimentação</code></li>
+                            <li><code>não</code></li>
+                            <li><code>atuação</code></li>
+                            <li><code>enchentes</code></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-lightbulb"></i> Como o Agente Funciona
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex align-items-start mb-3">
+                    <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 30px; height: 30px; min-width: 30px; font-size: 0.8rem;">
+                        1
+                    </div>
+                    <div>
+                        <h6 class="mb-1">Correção Ortográfica</h6>
+                        <p class="small mb-0">Corrige erros como "saude" → "saúde"</p>
+                    </div>
+                </div>
+                <div class="d-flex align-items-start mb-3">
+                    <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 30px; height: 30px; min-width: 30px; font-size: 0.8rem;">
+                        2
+                    </div>
+                    <div>
+                        <h6 class="mb-1">Análise de Sentido</h6>
+                        <p class="small mb-0">Identifica que "saúde" e "postos de saúde" são similares</p>
+                    </div>
+                </div>
+                <div class="d-flex align-items-start mb-3">
+                    <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 30px; height: 30px; min-width: 30px; font-size: 0.8rem;">
+                        3
+                    </div>
+                    <div>
+                        <h6 class="mb-1">Agrupamento</h6>
+                        <p class="small mb-0">Agrupa respostas similares no mesmo código</p>
+                    </div>
+                </div>
+                <div class="d-flex align-items-start">
+                    <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 30px; height: 30px; min-width: 30px; font-size: 0.8rem;">
+                        4
+                    </div>
+                    <div>
+                        <h6 class="mb-1">Relatório</h6>
+                        <p class="small mb-0">Gera relatório mostrando tudo que foi agrupado</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-star"></i> Vantagens
+                </h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    <li><i class="fas fa-check text-success"></i> <strong>Automático:</strong> Não precisa revisar manualmente</li>
+                    <li><i class="fas fa-check text-success"></i> <strong>Inteligente:</strong> Entende o sentido das respostas</li>
+                    <li><i class="fas fa-check text-success"></i> <strong>Rápido:</strong> Processa em segundos</li>
+                    <li><i class="fas fa-check text-success"></i> <strong>Preciso:</strong> Mantém códigos F17 existentes</li>
+                    <li><i class="fas fa-check text-success"></i> <strong>Transparente:</strong> Mostra tudo que foi agrupado</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-play"></i> Próximos Passos
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('questao_especifica') }}" class="btn btn-primary">
+                        <i class="fas fa-edit"></i> Processar Questão Específica
+                    </a>
+                    <a href="{{ url_for('upload_files') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-upload"></i> Upload de Arquivos
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function preencherExemplo() {
+    // Dados do exemplo
+    const questionName = "QUESTÃO 15 - PRINCIPAL REALIZAÇÃO DO GOVERNO";
+    const questionData = `Melhorou a saude
+Melhorou a saúde do bairro
+Saude melhorou muito
+Arrumou as estradas
+Consertou as ruas
+Asfalto novo
+Pavimentacao das ruas
+Nao fez nada
+Nada foi feito
+Construiu escola nova
+Escola reformada
+Atuacao nas enchentes
+Ajudou na enchente
+Durante as enchentez foi prestativo
+Cemai
+Obra do cemai`;
+
+    const f17Codes = `1 | Melhoria na área da saúde
+2 | Pavimentação/asfalto
+3 | Educação
+4 | Revitalização do calçadão
+5 | Iluminação de led
+6 | Atrair novas empresas/desenvolvimento
+7 | Revitalização da Avenida Ruperti Filho
+8 | Cursos de qualificação
+9 | Não fez nada`;
+
+    // Redireciona para página de questão específica com dados preenchidos
+    const url = new URL('/questao_especifica', window.location.origin);
+    url.searchParams.set('example', 'true');
+    
+    // Armazena dados no localStorage para preencher na outra página
+    localStorage.setItem('example_question_name', questionName);
+    localStorage.setItem('example_question_data', questionData);
+    localStorage.setItem('example_f17_codes', f17Codes);
+    
+    window.location.href = url.toString();
+}
+
+// Se chegou da página de exemplo, preenche os campos
+if (window.location.pathname === '/questao_especifica' && 
+    new URLSearchParams(window.location.search).get('example') === 'true') {
+    
+    window.addEventListener('load', function() {
+        const questionName = localStorage.getItem('example_question_name');
+        const questionData = localStorage.getItem('example_question_data');
+        const f17Codes = localStorage.getItem('example_f17_codes');
+        
+        if (questionName && questionData && f17Codes) {
+            document.getElementById('question_name').value = questionName;
+            document.getElementById('question_data').value = questionData;
+            document.getElementById('f17_codes').value = f17Codes;
+            
+            // Limpa localStorage
+            localStorage.removeItem('example_question_name');
+            localStorage.removeItem('example_question_data');
+            localStorage.removeItem('example_f17_codes');
+            
+            // Remove parâmetro da URL
+            const url = new URL(window.location);
+            url.searchParams.delete('example');
+            window.history.replaceState({}, '', url);
+        }
+    });
+}
+</script>
+{% endblock %}
+

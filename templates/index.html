@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block title %}Agente IPO - Início{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="text-center mb-5">
+            <h1 class="display-4 mb-3">
+                <i class="fas fa-robot text-primary"></i>
+                Agente IPO
+            </h1>
+            <p class="lead">Sistema Inteligente de Codificação para Instituto Pesquisas de Opinião</p>
+            <p class="text-muted">Automatize a codificação de pesquisas com correção ortográfica e agrupamento inteligente</p>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Questão Específica -->
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <div class="feature-icon">
+                    <i class="fas fa-edit"></i>
+                </div>
+                <h4 class="card-title">Questão Específica</h4>
+                <p class="card-text">
+                    Cole os dados de uma questão específica e os códigos F17 para processamento rápido.
+                    Ideal para codificar questões individuais.
+                </p>
+                <ul class="list-unstyled text-start">
+                    <li><i class="fas fa-check text-success"></i> Cole dados diretamente</li>
+                    <li><i class="fas fa-check text-success"></i> Processamento instantâneo</li>
+                    <li><i class="fas fa-check text-success"></i> Relatório detalhado</li>
+                    <li><i class="fas fa-check text-success"></i> Download dos resultados</li>
+                </ul>
+                <a href="{{ url_for('questao_especifica') }}" class="btn btn-primary btn-lg">
+                    <i class="fas fa-arrow-right"></i> Começar
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upload de Arquivos -->
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <div class="feature-icon">
+                    <i class="fas fa-upload"></i>
+                </div>
+                <h4 class="card-title">Upload de Arquivos</h4>
+                <p class="card-text">
+                    Envie o Banco de Codificação e F17 completos para processamento automático de toda a pesquisa.
+                </p>
+                <ul class="list-unstyled text-start">
+                    <li><i class="fas fa-check text-success"></i> Processa pesquisa completa</li>
+                    <li><i class="fas fa-check text-success"></i> Identifica questões F17</li>
+                    <li><i class="fas fa-check text-success"></i> Corrige outras questões</li>
+                    <li><i class="fas fa-check text-success"></i> Relatórios abrangentes</li>
+                </ul>
+                <a href="{{ url_for('upload_files') }}" class="btn btn-primary btn-lg">
+                    <i class="fas fa-arrow-right"></i> Enviar Arquivos
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Funcionalidades -->
+<div class="row mt-5">
+    <div class="col-12">
+        <h2 class="text-center mb-4">Funcionalidades Principais</h2>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-md-3">
+        <div class="text-center">
+            <i class="fas fa-spell-check text-primary" style="font-size: 2rem;"></i>
+            <h5 class="mt-3">Correção Ortográfica</h5>
+            <p class="text-muted">Corrige automaticamente erros de digitação antes do agrupamento</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="text-center">
+            <i class="fas fa-layer-group text-primary" style="font-size: 2rem;"></i>
+            <h5 class="mt-3">Agrupamento Inteligente</h5>
+            <p class="text-muted">Identifica respostas similares e agrupa por sentido</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="text-center">
+            <i class="fas fa-file-alt text-primary" style="font-size: 2rem;"></i>
+            <h5 class="mt-3">Relatório Detalhado</h5>
+            <p class="text-muted">Mostra tudo que foi agrupado em cada código</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="text-center">
+            <i class="fas fa-download text-primary" style="font-size: 2rem;"></i>
+            <h5 class="mt-3">Arquivos de Saída</h5>
+            <p class="text-muted">Banco codificado, F17 atualizado e relatórios</p>
+        </div>
+    </div>
+</div>
+
+<!-- Como Funciona -->
+<div class="row mt-5">
+    <div class="col-12">
+        <h2 class="text-center mb-4">Como Funciona</h2>
+        <div class="row">
+            <div class="col-md-8 mx-auto">
+                <div class="d-flex align-items-center mb-3">
+                    <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; min-width: 40px;">
+                        1
+                    </div>
+                    <div class="ms-3">
+                        <h6 class="mb-1">Entrada de Dados</h6>
+                        <p class="mb-0 text-muted">Cole os dados da questão e códigos F17 ou faça upload dos arquivos</p>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center mb-3">
+                    <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; min-width: 40px;">
+                        2
+                    </div>
+                    <div class="ms-3">
+                        <h6 class="mb-1">Processamento Inteligente</h6>
+                        <p class="mb-0 text-muted">Correção ortográfica + análise de sentido + agrupamento automático</p>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center mb-3">
+                    <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; min-width: 40px;">
+                        3
+                    </div>
+                    <div class="ms-3">
+                        <h6 class="mb-1">Resultados</h6>
+                        <p class="mb-0 text-muted">Banco codificado, F17 atualizado e relatório detalhado de agrupamentos</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Call to Action -->
+<div class="row mt-5">
+    <div class="col-12">
+        <div class="bg-light p-4 rounded text-center">
+            <h3>Pronto para começar?</h3>
+            <p class="mb-3">Escolha a opção que melhor se adapta ao seu fluxo de trabalho</p>
+            <a href="{{ url_for('questao_especifica') }}" class="btn btn-primary btn-lg me-3">
+                <i class="fas fa-edit"></i> Questão Específica
+            </a>
+            <a href="{{ url_for('exemplo') }}" class="btn btn-outline-primary btn-lg">
+                <i class="fas fa-question-circle"></i> Ver Exemplo
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
