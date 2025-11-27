@@ -66,7 +66,7 @@ app/
 ```
 Prompt → Function-calling Schema
   ↓
-OpenAI gpt-3.5-turbo
+OpenAI gpt-4o
   ↓
 Raw JSON Response (salvo em DB/arquivo)
   ↓

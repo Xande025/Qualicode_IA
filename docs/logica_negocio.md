@@ -12,7 +12,7 @@
 - Remove duplicatas óbvias
 
 ### 3. Geração de Codebook Inicial
-**O sistema seleciona uma amostra e envia para gpt-3.5-turbo**
+**O sistema seleciona uma amostra e envia para gpt-4o**
 - Amostra: até 30 respostas únicas por questão
 - Usa function-calling para garantir JSON estruturado
 - Output esperado: `{grupos: [{codigo, titulo, respostas}]}`

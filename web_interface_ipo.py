@@ -7,33 +7,25 @@ Interface Web Intuitiva para Agente IPO
 from flask import Flask, render_template, request, jsonify, send_file, flash, redirect, url_for
 import pandas as pd
 import os
-import io
-import json
+import tempfile
 from datetime import datetime
 from werkzeug.utils import secure_filename
-import tempfile
-import zipfile
+from dotenv import load_dotenv
+
+# Carrega variáveis de ambiente do .env
+load_dotenv()
 
 from final_ipo_agent_improved import FinalIPOAgentImproved
 
 app = Flask(__name__)
 
-# Configuração para produção
-import os
-
 # Configurações de segurança
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'ipo_agent_secret_key_2025_production')
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB
 
-# Configurações de diretório para produção
-UPLOAD_FOLDER = '/tmp/ipo_uploads'
-RESULTS_FOLDER = '/tmp/ipo_results'
-
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
-
-# Configurações
-UPLOAD_FOLDER = '/tmp/ipo_uploads'
-RESULTS_FOLDER = '/tmp/ipo_results'
+# Configurações de diretório (compatível Windows/Linux)
+UPLOAD_FOLDER = os.getenv('UPLOAD_FOLDER', os.path.join(tempfile.gettempdir(), 'ipo_uploads'))
+RESULTS_FOLDER = os.getenv('RESULTS_FOLDER', os.path.join(tempfile.gettempdir(), 'ipo_results'))
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(RESULTS_FOLDER, exist_ok=True)
 
@@ -136,19 +128,38 @@ def questao_especifica():
                 'error': 'Nenhum código F17 válido encontrado'
             })
         print("[DEBUG] Chamando process_single_question_with_chatgpt", flush=True)
-        result = agent.process_single_question_with_chatgpt(
-            question_data, 
-            existing_codes,
-            question_name
-        )
-        print("[DEBUG] Retornou do process_single_question_with_chatgpt", flush=True)
+        try:
+            result = agent.process_single_question_with_chatgpt(
+                question_data, 
+                existing_codes,
+                question_name
+            )
+            print("[DEBUG] Retornou do process_single_question_with_chatgpt", flush=True)
+        except Exception as e_chatgpt:
+            error_str = str(e_chatgpt)
+            print(f"[DEBUG] Erro ao processar com ChatGPT: {error_str}", flush=True)
+            
+            # Se a mensagem já contém instruções específicas (quota, chave inválida, etc), usa ela diretamente
+            if 'Quota' in error_str or 'quota' in error_str.lower() or 'billing' in error_str.lower():
+                error_message = error_str  # Já tem mensagem específica sobre quota
+            elif 'Chave de API' in error_str or 'invalid' in error_str.lower() or 'api-keys' in error_str.lower():
+                error_message = f"{error_str}. Verifique sua chave no arquivo .env"
+            else:
+                error_message = f"{error_str}. Verifique sua chave de API OpenAI no arquivo .env"
+            
+            return jsonify({
+                'success': False,
+                'error': error_message
+            })
         files_created = agent.save_improved_outputs(result, RESULTS_FOLDER)
         response_data = {
             'success': True,
             'question_name': question_name,
-            'total_responses': result['total_responses'],
-            'valid_responses': result['valid_responses'],
-            'statistics': result['statistics'],
+                'total_responses': result['total_responses'],
+                'valid_responses': result['valid_responses'],
+                'processing_method': result.get('processing_method', 'desconhecido'),
+                'question_type': result.get('question_type', 'desconhecido'),
+                'statistics': result['statistics'],
             'files_created': {k: os.path.basename(v) for k, v in files_created.items()},
             'detailed_report': result['detailed_report'][:2000] + '...' if len(result['detailed_report']) > 2000 else result['detailed_report'],
             'download_links': {
@@ -181,40 +192,13 @@ def download_file(filename):
         flash(f'Erro ao baixar arquivo: {str(e)}', 'error')
         return redirect(url_for('index'))
 
-@app.route('/download_all/<question_id>')
-def download_all(question_id):
-    """Download de todos os arquivos em ZIP"""
-    try:
-        # Cria ZIP com todos os arquivos
-        zip_buffer = io.BytesIO()
-        
-        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-            for filename in os.listdir(RESULTS_FOLDER):
-                if question_id in filename:
-                    file_path = os.path.join(RESULTS_FOLDER, filename)
-                    zip_file.write(file_path, filename)
-        
-        zip_buffer.seek(0)
-        
-        return send_file(
-            zip_buffer,
-            mimetype='application/zip',
-            as_attachment=True,
-            download_name=f'resultados_{question_id}.zip'
-        )
-        
-    except Exception as e:
-        flash(f'Erro ao criar ZIP: {str(e)}', 'error')
-        return redirect(url_for('index'))
-
 @app.route('/exemplo')
 def exemplo():
     """Página com exemplo de uso"""
     return render_template('exemplo.html')
 
 if __name__ == '__main__':
-    if __name__ == '__main__':
-        port = int(os.environ.get('PORT', 5000))
-        debug = os.environ.get('FLASK_ENV') != 'production'
-        app.run(debug=debug, host='0.0.0.0', port=port)
+    port = int(os.environ.get('PORT', 5000))
+    debug = os.environ.get('FLASK_ENV') != 'production'
+    app.run(debug=debug, host='0.0.0.0', port=port)
 

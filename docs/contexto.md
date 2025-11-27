@@ -9,7 +9,7 @@ Analistas de pesquisa passam muito tempo codificando respostas abertas, o que to
 
 ## Solução
 
-Automatizar o processo de codificação usando modelos de IA (OpenAI GPT-3.5-turbo), permitindo:
+Automatizar o processo de codificação usando modelos de IA (OpenAI GPT-4o), permitindo:
 
 ### Fluxo Principal
 

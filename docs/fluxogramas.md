@@ -5,7 +5,7 @@
     ↓
 [pré-processamento + normalização]
     ↓
-[amostra → gpt-3.5-turbo (function-calling)]
+[amostra → gpt-4o (function-calling)]
     ↓
 [agrupamento com códigos + fallback local]
     ↓

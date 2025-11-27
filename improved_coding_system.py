@@ -11,7 +11,10 @@ from typing import Dict, List, Tuple, Any
 from collections import defaultdict
 import os
 from datetime import datetime
-from openai_compat import get_openai_client
+from openai import OpenAI
+
+def get_openai_client(api_key):
+    return OpenAI(api_key=api_key)
 from dotenv import load_dotenv
 from fuzzywuzzy import fuzz
 import unicodedata
@@ -23,9 +26,9 @@ class ImprovedIPOCodingSystem:
     def __init__(self):
         self.corrections = self.load_corrections()
         self.similarity_patterns = self.load_similarity_patterns()
-    # Flag indicando se a API do ChatGPT está disponível (True/False/None)
-    # None = não testado ainda, True = disponível, False = indisponível
-    self.chatgpt_available = None
+        # Flag indicando se a API do ChatGPT está disponível (True/False/None)
+        # None = não testado ainda, True = disponível, False = indisponível
+        self.chatgpt_available = None
     
     def load_corrections(self) -> Dict[str, str]:
         """Carrega correções ortográficas"""
@@ -339,23 +342,38 @@ class ImprovedIPOCodingSystem:
         return codes, final_groups
     
     def standardize_with_chatgpt(self, phrase: str) -> str:
-        """Padroniza frase usando ChatGPT (OpenAI)"""
+        """Padroniza frase usando ChatGPT (OpenAI) seguindo regras IPO"""
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
             return phrase
         client = get_openai_client(api_key=api_key)
-        prompt = f"Padronize e corrija a frase para relatório de agrupamento/F17: '{phrase}'"
+        
+        # Prompt mais específico conforme regras IPO
+        prompt = (
+            f"Apply IPO rules to standardize this category title: '{phrase}'.\n"
+            "Rules:\n"
+            "1. Correct spelling and grammar.\n"
+            "2. Capitalize the first letter (Sentence case).\n"
+            "3. Keep it concise and descriptive.\n"
+            "4. Do not change the meaning.\n"
+            "5. Return ONLY the standardized text."
+        )
+        
         try:
             response = client.chat.completions.create(
-                model="gpt-3.5-turbo",
+                model="gpt-4o",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0
             )
             # Se chegou aqui, a API respondeu corretamente
             try:
                 content = response.choices[0].message.content.strip()
+                # Remove aspas se o modelo adicionar
+                if content.startswith('"') and content.endswith('"'):
+                    content = content[1:-1]
             except Exception:
                 content = str(response.choices[0].message.get('content', '')).strip()
+            
             # marca disponibilidade
             try:
                 self.chatgpt_available = True
@@ -370,12 +388,21 @@ class ImprovedIPOCodingSystem:
                 pass
             return phrase
 
-    def create_detailed_report(self, codes: Dict[str, int], groups: Dict[str, List[str]], question_name: str) -> str:
+    def create_detailed_report(self, codes: Dict[str, int], groups: Dict[str, List[str]], question_name: str, processing_method: str = None) -> str:
         """Cria relatório detalhado de agrupamentos"""
         
         report_lines = []
         report_lines.append(f"RELATÓRIO DE AGRUPAMENTOS – {question_name.upper()}")
         report_lines.append("")
+        
+        # Adiciona informação sobre o método usado
+        if processing_method:
+            method_info = {
+                'chatgpt': '🤖 Processado com ChatGPT (OpenAI GPT-4o)',
+                'fallback_local': '🔧 Processado com Agrupador Local (Fallback)'
+            }
+            report_lines.append(f"Método de Processamento: {method_info.get(processing_method, processing_method)}")
+            report_lines.append("")
         
         # Ordena códigos, reservados por último
         def code_sort_key(item):
@@ -388,7 +415,10 @@ class ImprovedIPOCodingSystem:
         for description, code in sorted_codes:
             # Só tenta padronizar via ChatGPT se soubermos que a API está disponível.
             # Se não estiver disponível (ou ainda não testada), usa a padronização local.
-            if getattr(self, 'chatgpt_available', None):
+            # Também verifica se o método de processamento foi 'chatgpt'
+            use_chatgpt = getattr(self, 'chatgpt_available', False) or (processing_method == 'chatgpt')
+            
+            if use_chatgpt:
                 standardized_desc = self.standardize_with_chatgpt(description)
             else:
                 standardized_desc = self.correct_text(description)
@@ -455,30 +485,6 @@ class ImprovedIPOCodingSystem:
                         response_column.append(response)
         
         return code_column, response_column
-    
-    def process_responses_improved(self, responses: List[Any], existing_codes: Dict[str, int], 
-                                 question_name: str) -> Tuple[Dict[str, int], Dict[str, List[str]], str]:
-        """Processa respostas com sistema melhorado"""
-        
-        # Filtra respostas válidas
-        valid_responses = []
-        for response in responses:
-            if pd.notna(response) and str(response).strip():
-                # Se é número, verifica se é código reservado
-                if isinstance(response, (int, float)) and response in [55, 66, 77, 88, 99]:
-                    valid_responses.append(str(int(response)))
-                elif isinstance(response, str) and response.strip():
-                    valid_responses.append(response.strip())
-                elif isinstance(response, (int, float)):
-                    valid_responses.append(str(response))
-        
-        # Agrupa respostas
-        codes, groups = self.group_responses_intelligent(valid_responses, existing_codes)
-        
-        # Gera relatório detalhado
-        report = self.create_detailed_report(codes, groups, question_name)
-        
-        return codes, groups, report
 
     def group_with_chatgpt(self, responses: list, f17: list = None, questionario: str = None) -> dict:
         """Agrupa respostas usando o ChatGPT, seguindo o prompt IPO, retornando um dicionário {titulo: [respostas]}"""
@@ -489,6 +495,8 @@ class ImprovedIPOCodingSystem:
         # Usa o prompt fornecido pelo usuário como system prompt para o ChatGPT
         system_prompt = """
 You are a survey coding specialist for the Institute of Opinion Research (IPO). Your objective is to receive data and code survey responses, following the IPO's rules exactly.
+
+CRITICAL: You MUST process EVERY SINGLE response provided. Do not skip any responses. Every response must appear in exactly one group.
 
 Your work must be carried out in mandatory steps. Please confirm the completion of each step before proceeding to the next.
 
@@ -502,15 +510,17 @@ Semi-open Question: contains some codes and some loose phrases. Create codes onl
 Open Question: contains only phrases/words except non-response codes (77,88,99). Search F17 for existing codes; otherwise create new starting at 10.
 
 Mandatory Workflow Steps:
-1. Analyze the question and the F17 to understand existing categories.
-2. Analyze all open responses, correct spelling, standardize words, identify equivalent meanings.
-3. Group responses ONLY when meaning is identical or equivalent.
-4. NEVER create duplicate codes for the same meaning.
-5. If a response has a unique meaning, assign a unique code.
-6. Never use generic grouping like "Others".
-7. Mandatory text review: correct spelling/grammar while preserving meaning; capitalize descriptions; standardize names; remove duplicates.
-8. If you detect different codes for the same response, mark it as "CHANGES TO (correct code)".
-9. If response is out of context or illegible, label it as "MANUAL REVIEW".
+1. Count the total number of responses provided. You MUST process ALL of them.
+2. Analyze the question and the F17 to understand existing categories.
+3. Analyze ALL open responses, correct spelling, standardize words, identify equivalent meanings.
+4. Group responses ONLY when meaning is identical or equivalent.
+5. NEVER create duplicate codes for the same meaning.
+6. If a response has a unique meaning, assign a unique code.
+7. Never use generic grouping like "Others".
+8. Mandatory text review: correct spelling/grammar while preserving meaning; capitalize descriptions; standardize names; remove duplicates.
+9. If you detect different codes for the same response, mark it as "CHANGES TO (correct code)".
+10. If response is out of context or illegible, label it as "MANUAL REVIEW".
+11. VERIFY: Count all responses in your groups. The total MUST equal the number of responses provided.
 
 F17 Rules and Critical Rules: follow exactly as described; do not change non-response codes (55,66,77,88,99); do not reorder/insert/delete rows in the database.
 
@@ -521,19 +531,27 @@ Mandatory Outputs:
 2. Excel Form 17 (.xlsx) with codes and responses.
 3. Grouping report in TXT explaining group decisions in the required structure.
 
-Working Format: Confirm question type before coding. Group equivalent meanings. Justify groupings. Work exclusively based on files provided and rules above.
+Working Format: Confirm question type before coding. Group equivalent meanings. Justify groupings. Work exclusively based on files provided and rules above. REMEMBER: Process EVERY response provided.
 """
         f17_block = ""
         if f17:
             f17_block = "F17 (codebook):\n" + "\n".join([str(x) for x in f17])
-        respostas_block = "\n".join([str(x) for x in responses])
+        respostas_block = "\n".join([f"{i+1}. {str(x)}" for i, x in enumerate(responses)])
+        total_respostas = len(responses)
         # User content pede explicitamente que o modelo retorne uma lista de objetos com codigo/titulo/respostas
         user_content = (
-            f"{f17_block}\n\nResponses to be coded (do not reorder rows):\n{respostas_block}\n\n"
-            "IMPORTANT: Respond ONLY with JSON. Return a JSON array (list) of objects with the exact fields:"
+            f"{f17_block}\n\n"
+            f"Total de respostas para processar: {total_respostas}\n"
+            f"Responses to be coded (do not reorder rows, process ALL {total_respostas} responses):\n{respostas_block}\n\n"
+            "CRITICAL REQUIREMENTS:"
+            " 1. You MUST process ALL unique responses listed above."
+            " 2. Create a Codebook that covers EVERY single response."
+            " 3. Use existing F17 codes when a response matches exactly or closely. You MUST return these groups too."
+            " 4. If you create new codes, start at 10 or the next available number."
+            " 5. Return a JSON array (list) of objects with the exact fields:"
             " [{\"codigo\": <integer>, \"titulo\": <string>, \"respostas\": [<string>, ...]}, ...]."
-            " Use existing F17 codes when a response matches an F17 entry. If you create new codes, start at 10 or the next available number beyond the highest provided in the F17."
-            " Do NOT include any text outside the JSON array."
+            " 6. IMPORTANT: Even if a response matches an existing F17 code, you MUST include it in the output JSON with that code."
+            " 7. Do NOT skip any response. The goal is to map every input to a code."
         )
         import sys
         try:
@@ -566,21 +584,57 @@ Working Format: Confirm question type before coding. Group equivalent meanings. 
 
             # Tenta chamar com function-calling; alguns clientes legados podem rejeitar o parâmetro
             try:
-                response = client.chat.completions.create(
-                    model="gpt-3.5-turbo",
-                    messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_content}],
-                    temperature=0,
-                    functions=functions,
-                    function_call="auto"
-                )
-            except TypeError:
-                # Cliente legado não suporta 'functions' - fallback para chamada normal
-                response = client.chat.completions.create(
-                    model="gpt-3.5-turbo",
-                    messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_content}],
-                    temperature=0
-                )
-            print("[DEBUG] ChatGPT respondeu!", flush=True)
+                # Nova API OpenAI usa 'tools' ao invés de 'functions'
+                try:
+                    response = client.chat.completions.create(
+                        model="gpt-4o",
+                        messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_content}],
+                        temperature=0,
+                        tools=[{
+                            "type": "function",
+                            "function": functions[0]
+                        }],
+                        tool_choice="auto"
+                    )
+                except (TypeError, AttributeError):
+                    # Tenta com 'functions' (API antiga)
+                    try:
+                        response = client.chat.completions.create(
+                            model="gpt-4o",
+                            messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_content}],
+                            temperature=0,
+                            functions=functions,
+                            function_call="auto"
+                        )
+                    except (TypeError, AttributeError):
+                        # Fallback para chamada normal sem function-calling
+                        print("[DEBUG] Function-calling não suportado, usando chamada normal", flush=True)
+                        response = client.chat.completions.create(
+                            model="gpt-4o",
+                            messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_content}],
+                            temperature=0
+                        )
+            except Exception as api_error:
+                error_str = str(api_error)
+                # Trata erros específicos da API OpenAI
+                if '429' in error_str or 'insufficient_quota' in error_str or 'quota' in error_str.lower():
+                    error_msg = "Quota da API OpenAI excedida. Verifique seus créditos e limite de uso em https://platform.openai.com/account/billing"
+                    print(f"[DEBUG] {error_msg}", flush=True)
+                    raise Exception(error_msg)
+                elif '401' in error_str or 'invalid_api_key' in error_str or 'authentication' in error_str.lower():
+                    error_msg = "Chave de API OpenAI inválida ou expirada. Verifique sua chave em https://platform.openai.com/api-keys"
+                    print(f"[DEBUG] {error_msg}", flush=True)
+                    raise Exception(error_msg)
+                elif 'rate_limit' in error_str.lower() or 'too_many_requests' in error_str.lower():
+                    error_msg = "Limite de requisições excedido. Aguarde alguns minutos e tente novamente."
+                    print(f"[DEBUG] {error_msg}", flush=True)
+                    raise Exception(error_msg)
+                else:
+                    error_msg = f"Erro na chamada à API OpenAI: {error_str}"
+                    print(f"[DEBUG] {error_msg}", flush=True)
+                    raise Exception(error_msg)
+                print("[DEBUG] ChatGPT respondeu!", flush=True)
+                self.chatgpt_available = True # Marca como disponível após sucesso
             import json
             # nova resposta: acesso via response.choices[0].message.content ou via response.choices[0].message['content']
             # adaptamos para ambos formatos
@@ -598,27 +652,45 @@ Working Format: Confirm question type before coding. Group equivalent meanings. 
             except Exception:
                 pass
 
-            # Extrai conteúdo: se o modelo usou function_call, pega arguments
+            # Extrai conteúdo: verifica tools (nova API) ou function_call (API antiga) ou content direto
             content = None
             try:
                 msg = response.choices[0].message
-                # new client: message may be object with 'function_call'
-                if isinstance(msg, dict) and 'function_call' in msg and msg['function_call']:
-                    func = msg['function_call']
-                    args_text = func.get('arguments') or func.get('args') or ''
-                    content = args_text
-                else:
-                    # objeto com atributos
-                    try:
-                        fc = getattr(msg, 'function_call', None)
-                        if fc:
-                            content = fc.get('arguments') if isinstance(fc, dict) else getattr(fc, 'arguments', None)
-                        else:
-                            # normal content
-                            content = getattr(msg, 'content', None) or (msg.get('content') if isinstance(msg, dict) else None)
-                    except Exception:
-                        content = str(msg)
-            except Exception:
+                
+                # Nova API: verifica 'tool_calls' primeiro
+                if hasattr(msg, 'tool_calls') and msg.tool_calls:
+                    for tool_call in msg.tool_calls:
+                        if hasattr(tool_call, 'function') and hasattr(tool_call.function, 'arguments'):
+                            content = tool_call.function.arguments
+                            print("[DEBUG] Conteúdo extraído de tool_calls (nova API)", flush=True)
+                            break
+                
+                # Se não encontrou em tool_calls, tenta function_call (API antiga)
+                if not content:
+                    if isinstance(msg, dict) and 'function_call' in msg and msg['function_call']:
+                        func = msg['function_call']
+                        content = func.get('arguments') or func.get('args') or ''
+                        if content:
+                            print("[DEBUG] Conteúdo extraído de function_call (dict)", flush=True)
+                    else:
+                        # objeto com atributos
+                        try:
+                            fc = getattr(msg, 'function_call', None)
+                            if fc:
+                                content = fc.get('arguments') if isinstance(fc, dict) else getattr(fc, 'arguments', None)
+                                if content:
+                                    print("[DEBUG] Conteúdo extraído de function_call (attr)", flush=True)
+                        except Exception:
+                            pass
+                
+                # Se ainda não encontrou, tenta content direto
+                if not content:
+                    content = getattr(msg, 'content', None) or (msg.get('content') if isinstance(msg, dict) else None)
+                    if content:
+                        print("[DEBUG] Conteúdo extraído de message.content", flush=True)
+                        
+            except Exception as e_extract:
+                print(f"[DEBUG] Erro ao extrair conteúdo: {e_extract}", flush=True)
                 # fallback para estruturas antigas
                 try:
                     content = response.choices[0].message.content
@@ -627,6 +699,13 @@ Working Format: Confirm question type before coding. Group equivalent meanings. 
                         content = response.choices[0].message['content'] if isinstance(response.choices[0].message, dict) else str(response)
                     except Exception:
                         content = str(response)
+            
+            if not content or (isinstance(content, str) and not content.strip()):
+                error_msg = "ChatGPT retornou resposta sem conteúdo válido. Verifique a resposta da API."
+                print(f"[DEBUG] {error_msg}", flush=True)
+                print(f"[DEBUG] Tipo de resposta: {type(response)}", flush=True)
+                print(f"[DEBUG] Estrutura da mensagem: {dir(response.choices[0].message) if response.choices else 'sem choices'}", flush=True)
+                raise Exception(error_msg)
 
             print(f"[DEBUG] Conteúdo bruto retornado pelo ChatGPT:\n{content}", flush=True)
             # Constrói mapa de existing_codes a partir do f17 para priorização (se fornecido)
@@ -686,6 +765,34 @@ Working Format: Confirm question type before coding. Group equivalent meanings. 
                     print(f"[DEBUG] Não foi possível parsear JSON do conteúdo retornado pelo ChatGPT: {e_json}", flush=True)
                     grupos = None
             # Agora esperamos que 'grupos' seja uma lista de objetos: [{codigo, titulo, respostas}, ...]
+            # OU um dicionário com a chave 'groups': {'groups': [{codigo, titulo, respostas}, ...]}
+            # OU um único objeto de grupo: {codigo, titulo, respostas} (caso raro, mas possível)
+            
+            if isinstance(grupos, dict):
+                if 'groups' in grupos:
+                    # ChatGPT retornou {'groups': [...]} - extrai a lista
+                    grupos = grupos['groups']
+                    print("[DEBUG] Extraído 'groups' do dicionário retornado pelo ChatGPT", flush=True)
+                elif 'codigo' in grupos and 'titulo' in grupos and 'respostas' in grupos:
+                    # ChatGPT retornou um único grupo sem lista
+                    print("[DEBUG] ChatGPT retornou um único grupo não envelopado. Convertendo para lista.", flush=True)
+                    grupos = [grupos]
+                else:
+                    # Tenta encontrar lista em outras chaves
+                    found_list = False
+                    for key in ['data', 'result', 'items']:
+                        if key in grupos and isinstance(grupos[key], list):
+                            grupos = grupos[key]
+                            print(f"[DEBUG] Extraído lista da chave '{key}'", flush=True)
+                            found_list = True
+                            break
+                    
+                    if not found_list:
+                        # É um dicionário mas não tem estrutura conhecida
+                        error_msg = f"Formato inesperado do retorno do ChatGPT (esperava lista ou dict com 'groups'): {type(grupos)} -> {list(grupos.keys()) if grupos else 'vazio'}"
+                        print(f"[DEBUG] {error_msg}", flush=True)
+                        raise Exception(error_msg)
+
             if isinstance(grupos, list):
                 codes = {}
                 groups_map = {}
@@ -726,17 +833,41 @@ Working Format: Confirm question type before coding. Group equivalent meanings. 
                         max_existing = max([c for c in existing_codes.values()] + [9])
                         used_code = max_existing + 1
                     final_codes[titulo] = used_code
-                return final_codes, groups_map
+                if final_codes and groups_map:
+                    # Verifica se todas as respostas foram processadas
+                    total_respostas_mapeadas = sum(len(resps) for resps in groups_map.values())
+                    total_respostas_originais = len(responses)
+                    
+                    print(f"[DEBUG] ✅ ChatGPT retornou {len(final_codes)} grupos válidos", flush=True)
+                    print(f"[DEBUG] Respostas mapeadas: {total_respostas_mapeadas} de {total_respostas_originais} originais", flush=True)
+                    
+                    if total_respostas_mapeadas < total_respostas_originais:
+                        faltando = total_respostas_originais - total_respostas_mapeadas
+                        print(f"[DEBUG] ⚠️ ATENÇÃO: {faltando} respostas não foram processadas pelo ChatGPT!", flush=True)
+                        print(f"[DEBUG] Respostas originais: {responses[:10]}...", flush=True)
+                        print(f"[DEBUG] Respostas mapeadas: {[r for resps in groups_map.values() for r in resps[:10]]}...", flush=True)
+                        # Não lança exceção, mas avisa - o sistema vai tentar mapear as faltantes depois
+                    
+                    return final_codes, groups_map
+                else:
+                    print(f"[DEBUG] ⚠️ ChatGPT retornou grupos vazios após processamento", flush=True)
+                    raise Exception("ChatGPT retornou grupos vazios após processamento. Verifique o formato da resposta.")
             else:
-                print(f"[DEBUG] Formato inesperado do retorno do ChatGPT (esperava lista): {type(grupos)} -> {grupos}", flush=True)
-                return {}, {}
+                error_msg = f"Formato inesperado do retorno do ChatGPT (esperava lista): {type(grupos)} -> {grupos}"
+                print(f"[DEBUG] {error_msg}", flush=True)
+                print(f"[DEBUG] Conteúdo bruto recebido: {content[:500]}...", flush=True)
+                raise Exception(f"{error_msg}. Conteúdo recebido: {str(content)[:200]}")
         except Exception as e:
-            print(f"[DEBUG] Erro ao agrupar com ChatGPT: {e}\nConteúdo retornado pelo ChatGPT:\n{locals().get('content', '')}", flush=True)
+            error_msg = f"Erro ao agrupar com ChatGPT: {str(e)}"
+            print(f"[DEBUG] {error_msg}", flush=True)
+            if 'content' in locals():
+                print(f"[DEBUG] Conteúdo retornado pelo ChatGPT: {content[:500]}...", flush=True)
             try:
                 self.chatgpt_available = False
             except Exception:
                 pass
-            return {}, {}
+            # Re-lança a exceção ao invés de retornar vazio
+            raise Exception(error_msg)
 
     def merge_similar_groups(self, grupos: dict, threshold: int = 85) -> dict:
         """Une grupos com títulos muito semelhantes usando fuzzy matching."""
@@ -770,53 +901,4 @@ Working Format: Confirm question type before coding. Group equivalent meanings. 
         for k in list(merged.keys()):
             merged[k] = list(dict.fromkeys(merged[k]))
         return merged
-
-def test_improved_system():
-    """Testa o sistema melhorado"""
-    print("🔧 TESTE DO SISTEMA DE CODIFICAÇÃO MELHORADO")
-    # Exemplo de dados para teste
-    responses = [
-        "Melhorou a saude",
-        "Arrumou as estradas",
-        "Nao fez nada",
-        "Construiu escola"
-    ]
-    existing_codes = {
-        "Melhoria na área da saúde": 1,
-        "Pavimentação/asfalto": 2,
-        "Não fez nada": 9
-    }
-    system = ImprovedIPOCodingSystem()
-    codes, groups, report = system.process_responses_improved(responses, existing_codes, "QUESTÃO TESTE")
-    print(report)
-    
-    print(f"\n📝 Amostra das respostas (com erros):")
-    for i, resp in enumerate(responses[:10], 1):
-        print(f"   {i:2d}. {resp}")
-    
-    # Processa com sistema melhorado
-    system = ImprovedIPOCodingSystem()
-    codes, groups, report = system.process_responses_improved(
-        responses, existing_codes, "QUESTÃO 15 - PRINCIPAL REALIZAÇÃO"
-    )
-    
-    print(f"\n✅ Processamento concluído!")
-    print(f"   - {len(codes)} códigos finais")
-    print(f"   - {len(groups)} grupos formados")
-    
-    # Salva relatório
-    with open("/home/ubuntu/relatorio_melhorado.txt", "w", encoding="utf-8") as f:
-        f.write(report)
-    
-    print(f"\n💾 Relatório salvo: relatorio_melhorado.txt")
-    
-    # Mostra amostra do relatório
-    print(f"\n📋 AMOSTRA DO RELATÓRIO:")
-    print("=" * 40)
-    print(report[:1000] + "..." if len(report) > 1000 else report)
-    
-    return codes, groups, report
-
-if __name__ == "__main__":
-    test_improved_system()
 
