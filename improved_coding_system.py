@@ -372,7 +372,8 @@ class ImprovedIPOCodingSystem:
         client = get_openai_client(api_key=api_key)
         
         # Prompt mais específico conforme regras IPO
-        prompt = (
+        # Tenta carregar prompt do arquivo
+        default_prompt = (
             f"Apply IPO rules to standardize this category title: '{phrase}'.\n"
             "Rules:\n"
             "1. Correct spelling and grammar.\n"
@@ -381,6 +382,17 @@ class ImprovedIPOCodingSystem:
             "4. Do not change the meaning.\n"
             "5. Return ONLY the standardized text."
         )
+        
+        prompt = default_prompt
+        try:
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            prompt_path = os.path.join(base_dir, 'prompts', 'standardization_prompt.txt')
+            if os.path.exists(prompt_path):
+                with open(prompt_path, 'r', encoding='utf-8') as f:
+                    template = f.read()
+                    prompt = template.replace('{phrase}', phrase)
+        except Exception as e:
+            print(f"Erro ao carregar prompt de padronização: {e}. Usando padrão.")
         
         try:
             response = client.chat.completions.create(
@@ -516,7 +528,8 @@ class ImprovedIPOCodingSystem:
             raise Exception("OPENAI_API_KEY não encontrada no .env")
         client = get_openai_client(api_key=api_key)
         # Usa o prompt fornecido pelo usuário como system prompt para o ChatGPT
-        system_prompt = """
+        # Carrega prompt do sistema
+        default_system_prompt = """
 You are a survey coding specialist for the Institute of Opinion Research (IPO). Your objective is to receive data and code survey responses, following the IPO's rules exactly.
 
 CRITICAL: You MUST process EVERY SINGLE response provided. Do not skip any responses. Every response must appear in exactly one group.
@@ -556,6 +569,15 @@ Mandatory Outputs:
 
 Working Format: Confirm question type before coding. Group equivalent meanings. Justify groupings. Work exclusively based on files provided and rules above. REMEMBER: Process EVERY response provided.
 """
+        system_prompt = default_system_prompt
+        try:
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            prompt_path = os.path.join(base_dir, 'prompts', 'system_prompt.txt')
+            if os.path.exists(prompt_path):
+                with open(prompt_path, 'r', encoding='utf-8') as f:
+                    system_prompt = f.read()
+        except Exception as e:
+            print(f"Erro ao carregar prompt do sistema: {e}. Usando padrão.")
         f17_block = ""
         if f17:
             f17_block = "F17 (codebook):\n" + "\n".join([str(x) for x in f17])
