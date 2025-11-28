@@ -19,6 +19,10 @@ def get_openai_client(api_key):
 from dotenv import load_dotenv
 from fuzzywuzzy import fuzz
 import unicodedata
+from dotenv import load_dotenv
+from fuzzywuzzy import fuzz
+import unicodedata
+from cache_manager import CacheManager
 load_dotenv()
 
 class ImprovedIPOCodingSystem:
@@ -29,7 +33,10 @@ class ImprovedIPOCodingSystem:
         self.similarity_patterns = self.load_similarity_patterns()
         # Flag indicando se a API do ChatGPT está disponível (True/False/None)
         # None = não testado ainda, True = disponível, False = indisponível
+        # Flag indicando se a API do ChatGPT está disponível (True/False/None)
+        # None = não testado ainda, True = disponível, False = indisponível
         self.chatgpt_available = None
+        self.cache = CacheManager()
     
     def load_corrections(self) -> Dict[str, str]:
         """Carrega correções ortográficas de arquivo JSON ou usa padrão"""
@@ -395,6 +402,11 @@ class ImprovedIPOCodingSystem:
             print(f"Erro ao carregar prompt de padronização: {e}. Usando padrão.")
         
         try:
+            # Verifica cache antes de chamar
+            cached_response = self.cache.get(prompt, "standardize")
+            if cached_response:
+                return cached_response
+
             response = client.chat.completions.create(
                 model="gpt-4o",
                 messages=[{"role": "user", "content": prompt}],
@@ -408,6 +420,9 @@ class ImprovedIPOCodingSystem:
                     content = content[1:-1]
             except Exception:
                 content = str(response.choices[0].message.get('content', '')).strip()
+            
+            # Salva no cache
+            self.cache.set(content, prompt, "standardize")
             
             # marca disponibilidade
             try:
@@ -599,157 +614,173 @@ Working Format: Confirm question type before coding. Group equivalent meanings. 
             " 7. Do NOT skip any response. The goal is to map every input to a code."
         )
         import sys
+        import sys
         try:
-            print("[DEBUG] Chamando ChatGPT (function-calling)...", flush=True)
-            # Define schema para function-calling: lista de objetos {codigo,titulo,respostas}
-            functions = [
-                {
-                    "name": "return_groups",
-                    "description": "Retorna uma lista de grupos codificados seguindo o formato IPO",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "groups": {
-                                "type": "array",
-                                "items": {
-                                    "type": "object",
-                                    "properties": {
-                                        "codigo": {"type": "integer"},
-                                        "titulo": {"type": "string"},
-                                        "respostas": {"type": "array", "items": {"type": "string"}}
-                                    },
-                                    "required": ["codigo", "titulo", "respostas"]
+            # Verifica cache para o agrupamento principal
+            # Usa system_prompt e user_content como chave
+            cached_grouping = self.cache.get(system_prompt, user_content, "grouping")
+            
+            if cached_grouping:
+                print("[DEBUG] Usando resposta em CACHE para agrupamento!", flush=True)
+                # Simula estrutura de resposta para o restante do código processar
+                # Precisamos retornar o conteúdo como se fosse o 'content' extraído
+                content = cached_grouping
+                # Pula a chamada da API
+            else:
+                print("[DEBUG] Chamando ChatGPT (function-calling)...", flush=True)
+                # Define schema para function-calling: lista de objetos {codigo,titulo,respostas}
+                functions = [
+                    {
+                        "name": "return_groups",
+                        "description": "Retorna uma lista de grupos codificados seguindo o formato IPO",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "groups": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "codigo": {"type": "integer"},
+                                            "titulo": {"type": "string"},
+                                            "respostas": {"type": "array", "items": {"type": "string"}}
+                                        },
+                                        "required": ["codigo", "titulo", "respostas"]
+                                    }
                                 }
-                            }
-                        },
-                        "required": ["groups"]
+                            },
+                            "required": ["groups"]
+                        }
                     }
-                }
-            ]
+                ]
 
-            # Tenta chamar com function-calling; alguns clientes legados podem rejeitar o parâmetro
-            try:
-                # Nova API OpenAI usa 'tools' ao invés de 'functions'
+                # Tenta chamar com function-calling; alguns clientes legados podem rejeitar o parâmetro
                 try:
-                    response = client.chat.completions.create(
-                        model="gpt-4o",
-                        messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_content}],
-                        temperature=0,
-                        tools=[{
-                            "type": "function",
-                            "function": functions[0]
-                        }],
-                        tool_choice="auto"
-                    )
-                except (TypeError, AttributeError):
-                    # Tenta com 'functions' (API antiga)
+                    # Nova API OpenAI usa 'tools' ao invés de 'functions'
                     try:
                         response = client.chat.completions.create(
                             model="gpt-4o",
                             messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_content}],
                             temperature=0,
-                            functions=functions,
-                            function_call="auto"
+                            tools=[{
+                                "type": "function",
+                                "function": functions[0]
+                            }],
+                            tool_choice="auto"
                         )
                     except (TypeError, AttributeError):
-                        # Fallback para chamada normal sem function-calling
-                        print("[DEBUG] Function-calling não suportado, usando chamada normal", flush=True)
-                        response = client.chat.completions.create(
-                            model="gpt-4o",
-                            messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_content}],
-                            temperature=0
-                        )
-            except Exception as api_error:
-                error_str = str(api_error)
-                # Trata erros específicos da API OpenAI
-                if '429' in error_str or 'insufficient_quota' in error_str or 'quota' in error_str.lower():
-                    error_msg = "Quota da API OpenAI excedida. Verifique seus créditos e limite de uso em https://platform.openai.com/account/billing"
-                    print(f"[DEBUG] {error_msg}", flush=True)
-                    raise Exception(error_msg)
-                elif '401' in error_str or 'invalid_api_key' in error_str or 'authentication' in error_str.lower():
-                    error_msg = "Chave de API OpenAI inválida ou expirada. Verifique sua chave em https://platform.openai.com/api-keys"
-                    print(f"[DEBUG] {error_msg}", flush=True)
-                    raise Exception(error_msg)
-                elif 'rate_limit' in error_str.lower() or 'too_many_requests' in error_str.lower():
-                    error_msg = "Limite de requisições excedido. Aguarde alguns minutos e tente novamente."
-                    print(f"[DEBUG] {error_msg}", flush=True)
-                    raise Exception(error_msg)
-                else:
-                    error_msg = f"Erro na chamada à API OpenAI: {error_str}"
-                    print(f"[DEBUG] {error_msg}", flush=True)
-                    raise Exception(error_msg)
-                print("[DEBUG] ChatGPT respondeu!", flush=True)
-                self.chatgpt_available = True # Marca como disponível após sucesso
-            import json
-            # nova resposta: acesso via response.choices[0].message.content ou via response.choices[0].message['content']
-            # adaptamos para ambos formatos
-            # Salva raw response para auditoria
-            try:
-                raw_path = os.path.join(os.getenv('RESULTS_FOLDER', '/tmp/ipo_results'), f"raw_chatgpt_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
-                with open(raw_path, 'w', encoding='utf-8') as rf:
-                    try:
-                        # tenta serializar o objeto de resposta diretamente
-                        import json as _json
-                        _json.dump(response.__dict__ if hasattr(response, '__dict__') else str(response), rf, ensure_ascii=False, indent=2)
-                    except Exception:
-                        rf.write(str(response))
-                print(f"[DEBUG] Raw ChatGPT salvo em: {raw_path}", flush=True)
-            except Exception:
-                pass
-
-            # Extrai conteúdo: verifica tools (nova API) ou function_call (API antiga) ou content direto
-            content = None
-            try:
-                msg = response.choices[0].message
-                
-                # Nova API: verifica 'tool_calls' primeiro
-                if hasattr(msg, 'tool_calls') and msg.tool_calls:
-                    for tool_call in msg.tool_calls:
-                        if hasattr(tool_call, 'function') and hasattr(tool_call.function, 'arguments'):
-                            content = tool_call.function.arguments
-                            print("[DEBUG] Conteúdo extraído de tool_calls (nova API)", flush=True)
-                            break
-                
-                # Se não encontrou em tool_calls, tenta function_call (API antiga)
-                if not content:
-                    if isinstance(msg, dict) and 'function_call' in msg and msg['function_call']:
-                        func = msg['function_call']
-                        content = func.get('arguments') or func.get('args') or ''
-                        if content:
-                            print("[DEBUG] Conteúdo extraído de function_call (dict)", flush=True)
-                    else:
-                        # objeto com atributos
+                        # Tenta com 'functions' (API antiga)
                         try:
-                            fc = getattr(msg, 'function_call', None)
-                            if fc:
-                                content = fc.get('arguments') if isinstance(fc, dict) else getattr(fc, 'arguments', None)
-                                if content:
-                                    print("[DEBUG] Conteúdo extraído de function_call (attr)", flush=True)
-                        except Exception:
-                            pass
-                
-                # Se ainda não encontrou, tenta content direto
-                if not content:
-                    content = getattr(msg, 'content', None) or (msg.get('content') if isinstance(msg, dict) else None)
-                    if content:
-                        print("[DEBUG] Conteúdo extraído de message.content", flush=True)
-                        
-            except Exception as e_extract:
-                print(f"[DEBUG] Erro ao extrair conteúdo: {e_extract}", flush=True)
-                # fallback para estruturas antigas
+                            response = client.chat.completions.create(
+                                model="gpt-4o",
+                                messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_content}],
+                                temperature=0,
+                                functions=functions,
+                                function_call="auto"
+                            )
+                        except (TypeError, AttributeError):
+                            # Fallback para chamada normal sem function-calling
+                            print("[DEBUG] Function-calling não suportado, usando chamada normal", flush=True)
+                            response = client.chat.completions.create(
+                                model="gpt-4o",
+                                messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_content}],
+                                temperature=0
+                            )
+                except Exception as api_error:
+                    error_str = str(api_error)
+                    # Trata erros específicos da API OpenAI
+                    if '429' in error_str or 'insufficient_quota' in error_str or 'quota' in error_str.lower():
+                        error_msg = "Quota da API OpenAI excedida. Verifique seus créditos e limite de uso em https://platform.openai.com/account/billing"
+                        print(f"[DEBUG] {error_msg}", flush=True)
+                        raise Exception(error_msg)
+                    elif '401' in error_str or 'invalid_api_key' in error_str or 'authentication' in error_str.lower():
+                        error_msg = "Chave de API OpenAI inválida ou expirada. Verifique sua chave em https://platform.openai.com/api-keys"
+                        print(f"[DEBUG] {error_msg}", flush=True)
+                        raise Exception(error_msg)
+                    elif 'rate_limit' in error_str.lower() or 'too_many_requests' in error_str.lower():
+                        error_msg = "Limite de requisições excedido. Aguarde alguns minutos e tente novamente."
+                        print(f"[DEBUG] {error_msg}", flush=True)
+                        raise Exception(error_msg)
+                    else:
+                        error_msg = f"Erro na chamada à API OpenAI: {error_str}"
+                        print(f"[DEBUG] {error_msg}", flush=True)
+                        raise Exception(error_msg)
+                    print("[DEBUG] ChatGPT respondeu!", flush=True)
+                    self.chatgpt_available = True # Marca como disponível após sucesso
+                import json
+                # nova resposta: acesso via response.choices[0].message.content ou via response.choices[0].message['content']
+                # adaptamos para ambos formatos
+                # Salva raw response para auditoria
                 try:
-                    content = response.choices[0].message.content
+                    raw_path = os.path.join(os.getenv('RESULTS_FOLDER', '/tmp/ipo_results'), f"raw_chatgpt_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
+                    with open(raw_path, 'w', encoding='utf-8') as rf:
+                        try:
+                            # tenta serializar o objeto de resposta diretamente
+                            import json as _json
+                            _json.dump(response.__dict__ if hasattr(response, '__dict__') else str(response), rf, ensure_ascii=False, indent=2)
+                        except Exception:
+                            rf.write(str(response))
+                    print(f"[DEBUG] Raw ChatGPT salvo em: {raw_path}", flush=True)
                 except Exception:
+                    pass
+
+                # Extrai conteúdo: verifica tools (nova API) ou function_call (API antiga) ou content direto
+                content = None
+                try:
+                    msg = response.choices[0].message
+                    
+                    # Nova API: verifica 'tool_calls' primeiro
+                    if hasattr(msg, 'tool_calls') and msg.tool_calls:
+                        for tool_call in msg.tool_calls:
+                            if hasattr(tool_call, 'function') and hasattr(tool_call.function, 'arguments'):
+                                content = tool_call.function.arguments
+                                print("[DEBUG] Conteúdo extraído de tool_calls (nova API)", flush=True)
+                                break
+                    
+                    # Se não encontrou em tool_calls, tenta function_call (API antiga)
+                    if not content:
+                        if isinstance(msg, dict) and 'function_call' in msg and msg['function_call']:
+                            func = msg['function_call']
+                            content = func.get('arguments') or func.get('args') or ''
+                            if content:
+                                print("[DEBUG] Conteúdo extraído de function_call (dict)", flush=True)
+                        else:
+                            # objeto com atributos
+                            try:
+                                fc = getattr(msg, 'function_call', None)
+                                if fc:
+                                    content = fc.get('arguments') if isinstance(fc, dict) else getattr(fc, 'arguments', None)
+                                    if content:
+                                        print("[DEBUG] Conteúdo extraído de function_call (attr)", flush=True)
+                            except Exception:
+                                pass
+                    
+                    # Se ainda não encontrou, tenta content direto
+                    if not content:
+                        content = getattr(msg, 'content', None) or (msg.get('content') if isinstance(msg, dict) else None)
+                        if content:
+                            print("[DEBUG] Conteúdo extraído de message.content", flush=True)
+                            
+                except Exception as e_extract:
+                    print(f"[DEBUG] Erro ao extrair conteúdo: {e_extract}", flush=True)
+                    # fallback para estruturas antigas
                     try:
-                        content = response.choices[0].message['content'] if isinstance(response.choices[0].message, dict) else str(response)
+                        content = response.choices[0].message.content
                     except Exception:
-                        content = str(response)
+                        try:
+                            content = response.choices[0].message['content'] if isinstance(response.choices[0].message, dict) else str(response)
+                        except Exception:
+                            content = str(response)
+                
+                # Salva no cache se tiver conteúdo válido
+                if content and isinstance(content, str) and content.strip():
+                    self.cache.set(content, system_prompt, user_content, "grouping")
             
             if not content or (isinstance(content, str) and not content.strip()):
                 error_msg = "ChatGPT retornou resposta sem conteúdo válido. Verifique a resposta da API."
                 print(f"[DEBUG] {error_msg}", flush=True)
-                print(f"[DEBUG] Tipo de resposta: {type(response)}", flush=True)
-                print(f"[DEBUG] Estrutura da mensagem: {dir(response.choices[0].message) if response.choices else 'sem choices'}", flush=True)
+                # print(f"[DEBUG] Tipo de resposta: {type(response)}", flush=True)
+                # print(f"[DEBUG] Estrutura da mensagem: {dir(response.choices[0].message) if response.choices else 'sem choices'}", flush=True)
                 raise Exception(error_msg)
 
             print(f"[DEBUG] Conteúdo bruto retornado pelo ChatGPT:\n{content}", flush=True)
