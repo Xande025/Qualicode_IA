@@ -10,6 +10,7 @@ import re
 from typing import Dict, List, Tuple, Any
 from collections import defaultdict
 import os
+import json
 from datetime import datetime
 from openai import OpenAI
 
@@ -31,9 +32,8 @@ class ImprovedIPOCodingSystem:
         self.chatgpt_available = None
     
     def load_corrections(self) -> Dict[str, str]:
-        """Carrega correções ortográficas"""
-        return {
-            # Correções básicas
+        """Carrega correções ortográficas de arquivo JSON ou usa padrão"""
+        default_corrections = {
             'nao': 'não',
             'sao': 'são',
             'voce': 'você',
@@ -53,24 +53,34 @@ class ImprovedIPOCodingSystem:
             'tambem': 'também',
             'melhor': 'melhor',
             'pior': 'pior',
-            
-            # Correções específicas
             'enchente': 'enchente',
             'enchentes': 'enchentes',
             'enche tez': 'enchentes',
             'asfalto': 'asfalto',
             'asfaltamento': 'asfaltamento',
-            'pavimentacao': 'pavimentação',
             'calcamento': 'calçamento',
             'calcadas': 'calçadas',
             'cemai': 'Cemai',
             'semae': 'Semae',
             'upa': 'UPA'
         }
+        
+        try:
+            # Tenta carregar do arquivo config/corrections.json
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            config_path = os.path.join(base_dir, 'config', 'corrections.json')
+            
+            if os.path.exists(config_path):
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+        except Exception as e:
+            print(f"Erro ao carregar correções do arquivo: {e}. Usando padrão.")
+            
+        return default_corrections
     
     def load_similarity_patterns(self) -> Dict[str, List[str]]:
-        """Carrega padrões de similaridade para agrupamento"""
-        return {
+        """Carrega padrões de similaridade de arquivo JSON ou usa padrão"""
+        default_patterns = {
             'saude': ['saúde', 'posto', 'médico', 'hospital', 'atendimento médico', 'consulta'],
             'asfalto': ['asfalto', 'pavimentação', 'pavimentar', 'rua', 'estrada', 'asfaltamento'],
             'educacao': ['educação', 'escola', 'ensino', 'curso', 'qualificação', 'instituto'],
@@ -81,6 +91,19 @@ class ImprovedIPOCodingSystem:
             'empresa': ['empresa', 'fábrica', 'emprego', 'trabalho', 'desenvolvimento'],
             'nada': ['nada', 'nenhum', 'não fez', 'não tem', 'ruim']
         }
+        
+        try:
+            # Tenta carregar do arquivo config/similarity_patterns.json
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            config_path = os.path.join(base_dir, 'config', 'similarity_patterns.json')
+            
+            if os.path.exists(config_path):
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+        except Exception as e:
+            print(f"Erro ao carregar padrões de similaridade do arquivo: {e}. Usando padrão.")
+            
+        return default_patterns
     
     def correct_text(self, text: str) -> str:
         """Corrige ortografia do texto"""
