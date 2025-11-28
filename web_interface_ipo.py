@@ -11,6 +11,11 @@ import tempfile
 from datetime import datetime
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
+import threading
+import uuid
+import time
+import shutil
+import zipfile
 
 # Carrega variáveis de ambiente do .env
 load_dotenv()
@@ -29,7 +34,118 @@ RESULTS_FOLDER = os.getenv('RESULTS_FOLDER', os.path.join(tempfile.gettempdir(),
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(RESULTS_FOLDER, exist_ok=True)
 
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(RESULTS_FOLDER, exist_ok=True)
+
 agent = FinalIPOAgentImproved()
+
+# Armazenamento de tarefas em memória (em produção usar Redis/DB)
+tasks = {}
+
+def process_batch_task(task_id, banco_path, f17_path):
+    """Função executada em thread separada"""
+    try:
+        tasks[task_id]['state'] = 'PROCESSING'
+        tasks[task_id]['status'] = 'Lendo arquivos...'
+        tasks[task_id]['progress'] = 5
+        
+        # Carrega arquivos
+        try:
+            banco_df = pd.read_excel(banco_path)
+            f17_xl = pd.ExcelFile(f17_path)
+        except Exception as e:
+            raise Exception(f"Erro ao ler arquivos Excel: {str(e)}")
+            
+        tasks[task_id]['progress'] = 10
+        total_cols = len(banco_df.columns)
+        processed_count = 0
+        
+        # Diretório para resultados desta tarefa
+        task_dir = os.path.join(RESULTS_FOLDER, task_id)
+        os.makedirs(task_dir, exist_ok=True)
+        
+        results_summary = []
+        
+        # Itera sobre colunas
+        for col_idx, col_name in enumerate(banco_df.columns):
+            col_safe = str(col_name).strip()
+            tasks[task_id]['status'] = f'Processando questão: {col_safe}'
+            
+            # Tenta encontrar aba correspondente no F17
+            # Procura por match exato ou parcial no nome da aba
+            f17_sheet_name = None
+            for sheet in f17_xl.sheet_names:
+                if str(sheet).strip() == col_safe:
+                    f17_sheet_name = sheet
+                    break
+            
+            # Se não achou exato, tenta conter
+            if not f17_sheet_name:
+                for sheet in f17_xl.sheet_names:
+                    if col_safe in str(sheet) or str(sheet) in col_safe:
+                        f17_sheet_name = sheet
+                        break
+            
+            question_data = banco_df[col_name].tolist()
+            existing_codes = {}
+            
+            if f17_sheet_name:
+                try:
+                    df_f17 = pd.read_excel(f17_path, sheet_name=f17_sheet_name)
+                    # Assume colunas 0 (código) e 1 (descrição)
+                    if len(df_f17.columns) >= 2:
+                        for _, row in df_f17.iterrows():
+                            try:
+                                code = int(row.iloc[0])
+                                desc = str(row.iloc[1])
+                                existing_codes[desc] = code
+                            except:
+                                continue
+                except Exception as e:
+                    print(f"Erro ao ler aba {f17_sheet_name}: {e}")
+            
+            # Processa a questão
+            try:
+                result = agent.process_single_question_with_chatgpt(
+                    question_data,
+                    existing_codes,
+                    col_safe
+                )
+                
+                # Salva resultados parciais
+                agent.save_improved_outputs(result, task_dir)
+                results_summary.append(f"Questão '{col_safe}': Sucesso ({result['question_type']})")
+                
+            except Exception as e:
+                print(f"Erro ao processar questão {col_safe}: {e}")
+                results_summary.append(f"Questão '{col_safe}': Erro - {str(e)}")
+            
+            processed_count += 1
+            progress = 10 + (processed_count / total_cols * 80)
+            tasks[task_id]['progress'] = progress
+            
+        # Finalização: Cria ZIP com tudo
+        tasks[task_id]['status'] = 'Gerando pacote final...'
+        zip_filename = f"resultado_completo_{task_id}.zip"
+        zip_path = os.path.join(RESULTS_FOLDER, zip_filename)
+        
+        with zipfile.ZipFile(zip_path, 'w') as zipf:
+            for root, dirs, files in os.walk(task_dir):
+                for file in files:
+                    zipf.write(os.path.join(root, file), file)
+                    
+        # Limpa diretório temporário da tarefa
+        shutil.rmtree(task_dir)
+        
+        tasks[task_id]['result_file'] = zip_filename
+        tasks[task_id]['progress'] = 100
+        tasks[task_id]['state'] = 'COMPLETED'
+        tasks[task_id]['status'] = 'Concluído com sucesso!'
+        
+    except Exception as e:
+        print(f"Erro fatal na tarefa {task_id}: {e}")
+        tasks[task_id]['state'] = 'ERROR'
+        tasks[task_id]['error'] = str(e)
 
 @app.route('/')
 def index():
@@ -45,15 +161,13 @@ def upload_files():
     try:
         # Verifica se arquivos foram enviados
         if 'banco_file' not in request.files or 'f17_file' not in request.files:
-            flash('Por favor, envie tanto o Banco quanto o F17', 'error')
-            return redirect(url_for('upload_files'))
+            return jsonify({'success': False, 'error': 'Arquivos não enviados'})
         
         banco_file = request.files['banco_file']
         f17_file = request.files['f17_file']
         
         if banco_file.filename == '' or f17_file.filename == '':
-            flash('Por favor, selecione os arquivos', 'error')
-            return redirect(url_for('upload_files'))
+            return jsonify({'success': False, 'error': 'Selecione os arquivos'})
         
         # Salva arquivos
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -63,13 +177,47 @@ def upload_files():
         banco_file.save(banco_path)
         f17_file.save(f17_path)
         
-        # Processa arquivos (implementação simplificada)
-        flash('Arquivos enviados com sucesso! Funcionalidade de processamento completo em desenvolvimento.', 'success')
-        return redirect(url_for('upload_files'))
+        # Cria tarefa
+        task_id = str(uuid.uuid4())
+        tasks[task_id] = {
+            'state': 'PENDING',
+            'status': 'Iniciando...',
+            'progress': 0,
+            'created_at': time.time()
+        }
+        
+        # Inicia thread
+        thread = threading.Thread(target=process_batch_task, args=(task_id, banco_path, f17_path))
+        thread.daemon = True
+        thread.start()
+        
+        return jsonify({
+            'success': True,
+            'task_id': task_id,
+            'message': 'Processamento iniciado'
+        })
         
     except Exception as e:
-        flash(f'Erro ao processar arquivos: {str(e)}', 'error')
-        return redirect(url_for('upload_files'))
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/task_status/<task_id>')
+def task_status(task_id):
+    """Retorna status da tarefa"""
+    task = tasks.get(task_id)
+    if not task:
+        return jsonify({'state': 'ERROR', 'error': 'Tarefa não encontrada'})
+    return jsonify(task)
+
+@app.route('/download_batch/<task_id>')
+def download_batch(task_id):
+    """Download do resultado final"""
+    task = tasks.get(task_id)
+    if not task or task['state'] != 'COMPLETED':
+        flash('Arquivo não disponível', 'error')
+        return redirect(url_for('index'))
+        
+    filename = task.get('result_file')
+    return send_file(os.path.join(RESULTS_FOLDER, filename), as_attachment=True)
 
 @app.route('/questao_especifica', methods=['GET', 'POST'])
 def questao_especifica():

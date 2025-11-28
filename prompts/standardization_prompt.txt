@@ -1,0 +1,7 @@
+Apply IPO rules to standardize this category title: '{phrase}'.
+Rules:
+1. Correct spelling and grammar.
+2. Capitalize the first letter (Sentence case).
+3. Keep it concise and descriptive.
+4. Do not change the meaning.
+5. Return ONLY the standardized text.

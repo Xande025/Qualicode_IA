@@ -25,15 +25,15 @@
                 </div>
                 <div class="card-body">
                     <div class="mb-3">
-                        <input type="file" class="form-control" id="banco_file" name="banco_file" 
-                               accept=".xlsx,.xls" required>
+                        <input type="file" class="form-control" id="banco_file" name="banco_file" accept=".xlsx,.xls"
+                            required>
                         <div class="form-text">
                             Arquivo Excel (.xlsx ou .xls) com as respostas da pesquisa
                         </div>
                     </div>
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle"></i>
-                        <strong>Formato esperado:</strong> Arquivo Excel com uma coluna para cada questão, 
+                        <strong>Formato esperado:</strong> Arquivo Excel com uma coluna para cada questão,
                         onde cada linha representa uma entrevista.
                     </div>
                 </div>
@@ -48,15 +48,15 @@
                 </div>
                 <div class="card-body">
                     <div class="mb-3">
-                        <input type="file" class="form-control" id="f17_file" name="f17_file" 
-                               accept=".xlsx,.xls" required>
+                        <input type="file" class="form-control" id="f17_file" name="f17_file" accept=".xlsx,.xls"
+                            required>
                         <div class="form-text">
                             Arquivo Excel (.xlsx ou .xls) com os códigos existentes
                         </div>
                     </div>
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle"></i>
-                        <strong>Formato esperado:</strong> Arquivo Excel com colunas "Código" e "Descrição" 
+                        <strong>Formato esperado:</strong> Arquivo Excel com colunas "Código" e "Descrição"
                         ou similar, contendo os códigos já definidos para as questões.
                     </div>
                 </div>
@@ -173,7 +173,7 @@
 
         <div class="alert alert-warning mt-4">
             <i class="fas fa-exclamation-triangle"></i>
-            <strong>Atenção:</strong> Arquivos grandes podem demorar para processar. 
+            <strong>Atenção:</strong> Arquivos grandes podem demorar para processar.
             Não feche a página durante o processamento.
         </div>
     </div>
@@ -187,11 +187,22 @@
                 <h5 class="modal-title">Processando Arquivos</h5>
             </div>
             <div class="modal-body text-center">
-                <div class="spinner-border text-primary mb-3" role="status">
-                    <span class="visually-hidden">Processando...</span>
+                <!-- Container de Progresso -->
+                <div id="progressContainer">
+                    <div class="progress mb-3" style="height: 25px;">
+                        <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated"
+                            role="progressbar" style="width: 0%">
+                            <span id="progressText">0%</span>
+                        </div>
+                    </div>
+                    <p id="progressStatus" class="mb-0">Aguardando início...</p>
                 </div>
-                <p>Enviando e processando arquivos...</p>
-                <p class="small text-muted">Isso pode levar alguns minutos dependendo do tamanho dos arquivos.</p>
+
+                <!-- Mensagens de Erro/Sucesso -->
+                <div id="uploadError" class="alert alert-danger d-none mb-0"></div>
+                <div id="uploadSuccess" class="alert alert-success d-none mb-0">
+                    Processamento concluído! Redirecionando...
+                </div>
             </div>
         </div>
     </div>
@@ -200,42 +211,115 @@
 
 {% block scripts %}
 <script>
-// Mostra modal de loading ao enviar formulário
-document.querySelector('form').addEventListener('submit', function() {
-    const modal = new bootstrap.Modal(document.getElementById('uploadModal'));
-    modal.show();
-});
+    // Gerenciamento do Upload e Progresso
+    document.querySelector('form').addEventListener('submit', async function (e) {
+        e.preventDefault();
 
-// Validação de arquivos
-document.getElementById('banco_file').addEventListener('change', function() {
-    validateFile(this, 'Banco de Codificação');
-});
+        const form = this;
+        const formData = new FormData(form);
+        const modal = new bootstrap.Modal(document.getElementById('uploadModal'));
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
+        const progressStatus = document.getElementById('progressStatus');
 
-document.getElementById('f17_file').addEventListener('change', function() {
-    validateFile(this, 'F17');
-});
+        // Reset UI
+        progressBar.style.width = '0%';
+        progressText.textContent = '0%';
+        progressStatus.textContent = 'Iniciando upload...';
+        document.getElementById('uploadError').classList.add('d-none');
+        document.getElementById('uploadSuccess').classList.add('d-none');
+        document.getElementById('progressContainer').classList.remove('d-none');
 
-function validateFile(input, type) {
-    const file = input.files[0];
-    if (file) {
-        const validTypes = ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 
-                           'application/vnd.ms-excel'];
-        
-        if (!validTypes.includes(file.type)) {
-            alert(`${type}: Por favor, selecione um arquivo Excel (.xlsx ou .xls)`);
-            input.value = '';
-            return false;
+        modal.show();
+
+        try {
+            // 1. Envia arquivos
+            const response = await fetch('/upload', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (!data.success) {
+                throw new Error(data.error || 'Erro ao enviar arquivos');
+            }
+
+            const taskId = data.task_id;
+
+            // 2. Polling de status
+            const pollInterval = setInterval(async () => {
+                try {
+                    const statusResponse = await fetch(`/task_status/${taskId}`);
+                    const statusData = await statusResponse.json();
+
+                    // Atualiza barra
+                    const percent = Math.round(statusData.progress || 0);
+                    progressBar.style.width = `${percent}%`;
+                    progressText.textContent = `${percent}%`;
+                    progressStatus.textContent = statusData.status || 'Processando...';
+
+                    if (statusData.state === 'COMPLETED') {
+                        clearInterval(pollInterval);
+                        progressStatus.textContent = 'Concluído!';
+                        progressBar.classList.add('bg-success');
+
+                        // Mostra botão de download ou redireciona
+                        setTimeout(() => {
+                            window.location.href = `/download_batch/${taskId}`;
+                        }, 1000);
+                    } else if (statusData.state === 'ERROR') {
+                        clearInterval(pollInterval);
+                        throw new Error(statusData.error || 'Erro no processamento');
+                    }
+
+                } catch (err) {
+                    clearInterval(pollInterval);
+                    showError(err.message);
+                }
+            }, 2000); // Consulta a cada 2 segundos
+
+        } catch (error) {
+            showError(error.message);
         }
-        
-        // Verifica tamanho (máximo 16MB)
-        if (file.size > 16 * 1024 * 1024) {
-            alert(`${type}: Arquivo muito grande. Máximo 16MB.`);
-            input.value = '';
-            return false;
+
+        function showError(msg) {
+            document.getElementById('progressContainer').classList.add('d-none');
+            const errorDiv = document.getElementById('uploadError');
+            errorDiv.textContent = msg;
+            errorDiv.classList.remove('d-none');
         }
+    });
+
+    // Validação de arquivos
+    document.getElementById('banco_file').addEventListener('change', function () {
+        validateFile(this, 'Banco de Codificação');
+    });
+
+    document.getElementById('f17_file').addEventListener('change', function () {
+        validateFile(this, 'F17');
+    });
+
+    function validateFile(input, type) {
+        const file = input.files[0];
+        if (file) {
+            const validTypes = ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'application/vnd.ms-excel'];
+
+            if (!validTypes.includes(file.type)) {
+                alert(`${type}: Por favor, selecione um arquivo Excel (.xlsx ou .xls)`);
+                input.value = '';
+                return false;
+            }
+
+            // Verifica tamanho (máximo 50MB)
+            if (file.size > 50 * 1024 * 1024) {
+                alert(`${type}: Arquivo muito grande. Máximo 50MB.`);
+                input.value = '';
+                return false;
+            }
+        }
+        return true;
     }
-    return true;
-}
 </script>
 {% endblock %}
-

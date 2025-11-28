@@ -1,0 +1,68 @@
+{
+    "saude": [
+        "saúde",
+        "posto",
+        "médico",
+        "hospital",
+        "atendimento médico",
+        "consulta"
+    ],
+    "asfalto": [
+        "asfalto",
+        "pavimentação",
+        "pavimentar",
+        "rua",
+        "estrada",
+        "asfaltamento"
+    ],
+    "educacao": [
+        "educação",
+        "escola",
+        "ensino",
+        "curso",
+        "qualificação",
+        "instituto"
+    ],
+    "enchente": [
+        "enchente",
+        "enchentes",
+        "alagamento",
+        "água",
+        "inundação"
+    ],
+    "habitacao": [
+        "casa",
+        "moradia",
+        "habitação",
+        "lote",
+        "apartamento",
+        "albergue"
+    ],
+    "infraestrutura": [
+        "calçada",
+        "calçamento",
+        "ponte",
+        "obra",
+        "construção"
+    ],
+    "esporte": [
+        "esporte",
+        "projeto",
+        "lazer",
+        "recreação"
+    ],
+    "empresa": [
+        "empresa",
+        "fábrica",
+        "emprego",
+        "trabalho",
+        "desenvolvimento"
+    ],
+    "nada": [
+        "nada",
+        "nenhum",
+        "não fez",
+        "não tem",
+        "ruim"
+    ]
+}
